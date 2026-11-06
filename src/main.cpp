@@ -1,3 +1,5 @@
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
 #include <Geode/Geode.hpp>
 #include <Geode/modify/CCDirector.hpp>
 #include <Geode/modify/CCScheduler.hpp>
@@ -24,32 +26,39 @@ namespace NoTearState {
     int64_t scanlineOffsetUs = -500;
     bool trueBorderless = true;
 
-    bool shouldRenderFrame = true;
-    cocos2d::CCScene* savedScene = nullptr;
+    bool isIntermediateTick = false;
+    bool overrideSchedulerDt = false;
+    float currentRealDt = 1.0f / 240.0f;
+    double renderAccum = 0.0;
 
     LARGE_INTEGER qpcFreq{};
-    LARGE_INTEGER lastRenderQpc{};
+    LARGE_INTEGER lastTickQpc{};
     uint32_t configTickCounter = 0;
 
+    #ifdef GEODE_IS_WINDOWS
     HWND cachedHwnd = nullptr;
     bool borderlessApplied = false;
 
     using PFNWGLSWAPINTERVALEXTPROC = BOOL(WINAPI*)(int interval);
     PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT = nullptr;
     bool wglInitialized = false;
+    #endif
 
     void initTimers() {
+        #ifdef GEODE_IS_WINDOWS
         if (qpcFreq.QuadPart == 0) {
             QueryPerformanceFrequency(&qpcFreq);
-            QueryPerformanceCounter(&lastRenderQpc);
+            QueryPerformanceCounter(&lastTickQpc);
         }
+        #endif
     }
 
     void refreshSettings() {
         auto* mod = Mod::get();
         enabled = mod->getSettingValue<bool>("enable-mod");
         drawDivide = mod->getSettingValue<bool>("draw-divide");
-        renderFps = std::max<int64_t>(30, mod->getSettingValue<int64_t>("render-fps"));
+        int64_t target = mod->getSettingValue<int64_t>("render-fps");
+        renderFps = (target < 30) ? 30 : target;
         scanlineSync = mod->getSettingValue<bool>("scanline-sync");
         scanlineOffsetUs = mod->getSettingValue<int64_t>("scanline-offset-us");
         trueBorderless = mod->getSettingValue<bool>("true-borderless");
@@ -118,22 +127,6 @@ namespace NoTearState {
 }
 
 class $modify(NoTearDirector, cocos2d::CCDirector) {
-    void suppressSceneOnTick() {
-        if (this->m_pNextScene != nullptr) {
-            NoTearState::shouldRenderFrame = true;
-        } else if (!NoTearState::shouldRenderFrame && NoTearState::savedScene == nullptr) {
-            NoTearState::savedScene = this->m_pRunningScene;
-            this->m_pRunningScene = nullptr;
-        }
-    }
-
-    void restoreSceneOnTick() {
-        if (NoTearState::savedScene != nullptr) {
-            this->m_pRunningScene = NoTearState::savedScene;
-            NoTearState::savedScene = nullptr;
-        }
-    }
-
     void drawScene() {
         NoTearState::initTimers();
 
@@ -142,54 +135,63 @@ class $modify(NoTearDirector, cocos2d::CCDirector) {
             NoTearState::refreshSettings();
         }
 
-        NoTearState::shouldRenderFrame = true;
+        #ifdef GEODE_IS_WINDOWS
+        LARGE_INTEGER now{};
+        QueryPerformanceCounter(&now);
+        double realDt = static_cast<double>(now.QuadPart - NoTearState::lastTickQpc.QuadPart) /
+                        static_cast<double>(NoTearState::qpcFreq.QuadPart);
+        NoTearState::lastTickQpc = now;
 
-        if (NoTearState::enabled && NoTearState::drawDivide && this->m_pNextScene == nullptr) {
-            LARGE_INTEGER now{};
-            QueryPerformanceCounter(&now);
+        if (realDt <= 0.0 || realDt > 0.1) {
+            realDt = 1.0 / 240.0;
+        }
+        NoTearState::currentRealDt = static_cast<float>(realDt);
 
-            double elapsedSec = static_cast<double>(now.QuadPart - NoTearState::lastRenderQpc.QuadPart) /
-                                static_cast<double>(NoTearState::qpcFreq.QuadPart);
+        // Chi kich hoat Draw Divide khi dang trong man choi (PlayLayer) de tranh loi chuyen canh
+        if (NoTearState::enabled && NoTearState::drawDivide && PlayLayer::get() != nullptr) {
+            NoTearState::renderAccum += realDt;
             double targetInterval = 1.0 / static_cast<double>(NoTearState::renderFps);
 
-            if (elapsedSec >= targetInterval) {
-                if (elapsedSec > targetInterval * 2.0) {
-                    NoTearState::lastRenderQpc = now;
-                } else {
-                    NoTearState::lastRenderQpc.QuadPart += static_cast<LONGLONG>(
-                        targetInterval * static_cast<double>(NoTearState::qpcFreq.QuadPart)
-                    );
+            if (NoTearState::renderAccum >= targetInterval) {
+                NoTearState::renderAccum -= targetInterval;
+                if (NoTearState::renderAccum > targetInterval) {
+                    NoTearState::renderAccum = 0.0;
                 }
-                NoTearState::shouldRenderFrame = true;
+                NoTearState::isIntermediateTick = false;
+                NoTearState::overrideSchedulerDt = true;
+                CCDirector::drawScene();
+                NoTearState::overrideSchedulerDt = false;
             } else {
-                NoTearState::shouldRenderFrame = false;
+                // Frame trung gian: Chi cap nhat Physics & Input o toc do 240/360Hz, bo qua Render
+                NoTearState::isIntermediateTick = true;
+                if (!this->isPaused() && this->getScheduler() != nullptr) {
+                    this->getScheduler()->update(NoTearState::currentRealDt);
+                }
+                NoTearState::isIntermediateTick = false;
             }
+            return;
         }
+        #endif
 
+        NoTearState::isIntermediateTick = false;
+        NoTearState::overrideSchedulerDt = false;
         CCDirector::drawScene();
-        this->restoreSceneOnTick();
     }
 };
 
 class $modify(NoTearScheduler, cocos2d::CCScheduler) {
     void update(float dt) {
-        CCScheduler::update(dt);
-
-        if (NoTearState::enabled && NoTearState::drawDivide && !NoTearState::shouldRenderFrame) {
-            if (auto* dir = static_cast<NoTearDirector*>(cocos2d::CCDirector::sharedDirector())) {
-                dir->suppressSceneOnTick();
-            }
+        if (NoTearState::overrideSchedulerDt) {
+            dt = NoTearState::currentRealDt;
+            NoTearState::overrideSchedulerDt = false;
         }
+        CCScheduler::update(dt);
     }
 };
 
 class $modify(NoTearEGLView, cocos2d::CCEGLView) {
     void swapBuffers() {
-        if (auto* dir = static_cast<NoTearDirector*>(cocos2d::CCDirector::sharedDirector())) {
-            dir->restoreSceneOnTick();
-        }
-
-        if (NoTearState::enabled && NoTearState::drawDivide && !NoTearState::shouldRenderFrame) {
+        if (NoTearState::enabled && NoTearState::drawDivide && NoTearState::isIntermediateTick) {
             return;
         }
 
