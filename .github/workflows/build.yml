@@ -13,32 +13,28 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Auto-sync Geode SDK Version in mod.json
+      - name: Sync Geode SDK Version (UTF-8 No BOM)
         shell: pwsh
         run: |
-          try {
-            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/geode-sdk/geode/releases/latest"
-            $sdkVer = $release.tag_name.TrimStart('v')
-            Write-Host "Detected latest Geode SDK: $sdkVer"
-            $modPath = "mod.json"
-            $json = Get-Content $modPath -Raw | ConvertFrom-Json
-            $json.geode = $sdkVer
-            $json | ConvertTo-Json -Depth 10 | Set-Content $modPath -Encoding UTF8
-          } catch {
-            Write-Warning "Using default version in mod.json"
-          }
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/geode-sdk/geode/releases/latest"
+          $sdkVer = $release.tag_name.TrimStart('v')
+          Write-Host "Syncing mod.json to Geode SDK version: $sdkVer"
+          $modPath = Join-Path $PWD "mod.json"
+          $json = Get-Content $modPath -Raw | ConvertFrom-Json
+          $json.geode = $sdkVer
+          $outString = $json | ConvertTo-Json -Depth 10
+          $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+          [System.IO.File]::WriteAllText($modPath, $outString, $utf8NoBom)
 
       - name: Build Geode Mod
         uses: geode-sdk/build-geode-mod@main
         id: build
         with:
           sdk: latest
-          config: Release
-          combine: true
+          build-config: Release
 
       - name: Upload .geode Artifact
         uses: actions/upload-artifact@v4
         with:
           name: NoTearFPS-2.2081
           path: ${{ steps.build.outputs.build-output }}
-          if-no-files-found: ignore
