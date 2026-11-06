@@ -1,0 +1,53 @@
+{
+    "geode": "4.4.0",
+    "gd": {
+        "win": "*"
+    },
+    "id": "custom.notear_fps",
+    "name": "NoTear FPS Optimizer",
+    "version": "1.0.1",
+    "developer": "CustomMod",
+    "description": "Triet tieu xe hinh (Screen Tearing) khi Unlock FPS trong GD 2.2081 bang Draw Divide & Scanline VBlank Sync.",
+    "settings": {
+        "enable-mod": {
+            "name": "Bat Anti-Tear Engine",
+            "description": "Kich hoat bo xu ly chong xe hinh khi Unlock FPS.",
+            "type": "bool",
+            "default": true
+        },
+        "draw-divide": {
+            "name": "Che do Smart Draw Divide (Khuyen dung)",
+            "description": "Giu nguyen do nhay Input/Physics 240-360Hz nhung chi xuat hinh theo Target Render FPS de xoa 100% xe hinh va giam tai GPU.",
+            "type": "bool",
+            "default": true
+        },
+        "render-fps": {
+            "name": "Target Render FPS (Draw Divide)",
+            "description": "So khung hinh hien thi moi giay (Dat 60 cho man hinh 60Hz de khop chu ky quet).",
+            "type": "int",
+            "default": 60,
+            "min": 60,
+            "max": 360
+        },
+        "scanline-sync": {
+            "name": "DWM VBlank / Scanline Phase Sync",
+            "description": "Can chinh thoi diem SwapBuffers trung voi chu ky VBlank cua man hinh.",
+            "type": "bool",
+            "default": true
+        },
+        "scanline-offset-us": {
+            "name": "Scanline Timing Offset (Microseconds)",
+            "description": "Do lech pha so voi VBlank (micro-giay) de day vet xe ra khoi mep man hinh.",
+            "type": "int",
+            "default": -500,
+            "min": -5000,
+            "max": 5000
+        },
+        "true-borderless": {
+            "name": "Ep cua so True Borderless (Windows 11 DWM)",
+            "description": "Chuyen cua so sang Borderless Windowed de Windows 11 DWM chong xe hinh bang DXGI Flip Model.",
+            "type": "bool",
+            "default": true
+        }
+    }
+}
