@@ -1,12 +1,12 @@
 {
-    "geode": "4.4.0",
+    "geode": "5.3.0",
     "gd": {
-        "win": "*"
+        "win": "2.2081"
     },
-    "id": "custom.notear_fps",
+    "id": "yingseo.notear-fps",
     "name": "NoTear FPS Optimizer",
-    "version": "1.0.1",
-    "developer": "CustomMod",
+    "version": "v1.0.0",
+    "developer": "YingSeo",
     "description": "Triet tieu xe hinh (Screen Tearing) khi Unlock FPS trong GD 2.2081 bang Draw Divide & Scanline VBlank Sync.",
     "settings": {
         "enable-mod": {
