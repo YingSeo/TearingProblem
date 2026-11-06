@@ -118,25 +118,18 @@ namespace NoTearState {
 }
 
 class $modify(NoTearDirector, cocos2d::CCDirector) {
-    static void suppressSceneIfReady() {
-        auto* dir = static_cast<NoTearDirector*>(cocos2d::CCDirector::sharedDirector());
-        if (!dir) return;
-
-        // Luon render day du khi dang chuyen canh (m_pNextScene != nullptr)
-        if (dir->m_pNextScene != nullptr) {
+    void suppressSceneOnTick() {
+        if (this->m_pNextScene != nullptr) {
             NoTearState::shouldRenderFrame = true;
         } else if (!NoTearState::shouldRenderFrame && NoTearState::savedScene == nullptr) {
-            NoTearState::savedScene = dir->m_pRunningScene;
-            dir->m_pRunningScene = nullptr;
+            NoTearState::savedScene = this->m_pRunningScene;
+            this->m_pRunningScene = nullptr;
         }
     }
 
-    static void restoreScene() {
+    void restoreSceneOnTick() {
         if (NoTearState::savedScene != nullptr) {
-            auto* dir = static_cast<NoTearDirector*>(cocos2d::CCDirector::sharedDirector());
-            if (dir) {
-                dir->m_pRunningScene = NoTearState::savedScene;
-            }
+            this->m_pRunningScene = NoTearState::savedScene;
             NoTearState::savedScene = nullptr;
         }
     }
@@ -174,29 +167,29 @@ class $modify(NoTearDirector, cocos2d::CCDirector) {
         }
 
         CCDirector::drawScene();
-        NoTearDirector::restoreScene();
+        this->restoreSceneOnTick();
     }
 };
 
 class $modify(NoTearScheduler, cocos2d::CCScheduler) {
     void update(float dt) {
-        // Chay toan bo Physics va Input o toc do Unlock FPS (240Hz/360Hz)
         CCScheduler::update(dt);
 
-        // Sau khi Physics da cap nhat xong, neu chua den chu ky xuat hinh 60Hz thi tam an Scene de bo qua visit()
         if (NoTearState::enabled && NoTearState::drawDivide && !NoTearState::shouldRenderFrame) {
-            NoTearDirector::suppressSceneIfReady();
+            if (auto* dir = static_cast<NoTearDirector*>(cocos2d::CCDirector::sharedDirector())) {
+                dir->suppressSceneOnTick();
+            }
         }
     }
 };
 
 class $modify(NoTearEGLView, cocos2d::CCEGLView) {
     void swapBuffers() {
-        // Khoi phuc con tro m_pRunningScene ngay lap tuc
-        NoTearDirector::restoreScene();
+        if (auto* dir = static_cast<NoTearDirector*>(cocos2d::CCDirector::sharedDirector())) {
+            dir->restoreSceneOnTick();
+        }
 
         if (NoTearState::enabled && NoTearState::drawDivide && !NoTearState::shouldRenderFrame) {
-            // Khong SwapBuffers o cac frame trung gian de tranh xe hinh tren man hinh 60Hz
             return;
         }
 
