@@ -5,44 +5,43 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Windows Build (GD 2.2081)
     runs-on: windows-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Sync mod.json with Latest Geode SDK Release
+      - name: Auto-match Geode SDK Version
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $headers = @{ "User-Agent" = "GeodeModBuilder" }
-          if ($env:GH_TOKEN) {
-            $headers["Authorization"] = "Bearer $env:GH_TOKEN"
-          }
+          $headers = @{ "User-Agent" = "GeodeBuilder" }
+          if ($env:GH_TOKEN) { $headers["Authorization"] = "Bearer $env:GH_TOKEN" }
           $release = Invoke-RestMethod -Uri "https://api.github.com/repos/geode-sdk/geode/releases/latest" -Headers $headers
-          $sdkVer = $release.tag_name.TrimStart('v')
-
-          $modPath = Join-Path $PWD "mod.json"
-          $json = Get-Content $modPath -Raw | ConvertFrom-Json
-          $json.geode = $sdkVer
-
-          $outString = $json | ConvertTo-Json -Depth 10
+          $ver = $release.tag_name.TrimStart('v')
+          $path = Join-Path $PWD "mod.json"
+          $raw = [System.IO.File]::ReadAllText($path)
+          $updated = $raw -replace '"geode":\s*"[^"]+"', "`"geode`": `"$ver`""
           $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-          [System.IO.File]::WriteAllText($modPath, $outString, $utf8NoBom)
-          Write-Host "Successfully synced mod.json to Geode SDK v$sdkVer"
+          [System.IO.File]::WriteAllText($path, $updated, $utf8NoBom)
 
       - name: Build Geode Mod
         uses: geode-sdk/build-geode-mod@main
         id: build
         with:
           sdk: latest
-          build-config: Release
+          use-lto: false
 
       - name: Upload .geode Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NoTearFPS-v2.0.0-2.2081
+          name: NoTearFPS-Auto
           path: ${{ steps.build.outputs.build-output }}
