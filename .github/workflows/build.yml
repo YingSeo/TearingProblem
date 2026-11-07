@@ -18,20 +18,63 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Auto-match Geode SDK Version
+      - name: Auto-Fix Project Structure & Sync Geode SDK
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $headers = @{ "User-Agent" = "GeodeBuilder" }
+          # 1. Dam bao thu muc src ton tai va dong bo main.cpp moi nhat vao src/main.cpp
+          if (-not (Test-Path "src")) {
+            New-Item -ItemType Directory -Path "src" | Out-Null
+          }
+          if (Test-Path "main.cpp") {
+            Copy-Item -Path "main.cpp" -Destination "src/main.cpp" -Force
+            Remove-Item -Path "main.cpp" -Force
+          }
+
+          # 2. Lay phien ban Geode SDK moi nhat
+          $headers = @{ "User-Agent" = "GeodeModBuilder" }
           if ($env:GH_TOKEN) { $headers["Authorization"] = "Bearer $env:GH_TOKEN" }
           $release = Invoke-RestMethod -Uri "https://api.github.com/repos/geode-sdk/geode/releases/latest" -Headers $headers
-          $ver = $release.tag_name.TrimStart('v')
-          $path = Join-Path $PWD "mod.json"
-          $raw = [System.IO.File]::ReadAllText($path)
-          $updated = $raw -replace '"geode":\s*"[^"]+"', "`"geode`": `"$ver`""
+          $sdkVer = $release.tag_name.TrimStart('v')
+
+          # 3. Tao mod.json chuan khong BOM
+          $modJson = @"
+          {
+              "geode": "$sdkVer",
+              "gd": {
+                  "win": "2.2081"
+              },
+              "id": "yingseo.notear-fps",
+              "name": "NoTear FPS Auto",
+              "version": "v1.0.0",
+              "developer": "YingSeo",
+              "description": "Tu dong chong xe hinh (Screen Tearing) khi Unlock FPS ngay khi vao game."
+          }
+          "@
           $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-          [System.IO.File]::WriteAllText($path, $updated, $utf8NoBom)
+          [System.IO.File]::WriteAllText((Join-Path $PWD "mod.json"), $modJson, $utf8NoBom)
+
+          # 4. Tao CMakeLists.txt chuan C++23
+          $cmake = @"
+          cmake_minimum_required(VERSION 3.21)
+          set(CMAKE_CXX_STANDARD 23)
+          set(CMAKE_CXX_STANDARD_REQUIRED ON)
+          set(CMAKE_CXX_EXTENSIONS OFF)
+          set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+
+          project(NoTearFPS VERSION 1.0.0)
+
+          add_library(`${PROJECT_NAME} SHARED src/main.cpp)
+
+          if (NOT DEFINED ENV{GEODE_SDK})
+              message(FATAL_ERROR "Unable to find Geode SDK!")
+          endif()
+
+          add_subdirectory(`$ENV{GEODE_SDK} `${CMAKE_CURRENT_BINARY_DIR}/geode)
+          setup_geode_mod(`${PROJECT_NAME})
+          "@
+          [System.IO.File]::WriteAllText((Join-Path $PWD "CMakeLists.txt"), $cmake, $utf8NoBom)
 
       - name: Build Geode Mod
         uses: geode-sdk/build-geode-mod@main
