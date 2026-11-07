@@ -13,15 +13,12 @@ jobs:
   build:
     name: Windows Build (GD 2.2081)
     runs-on: windows-latest
-    timeout-minutes: 10
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Generate Clean Project Files
+      - name: Setup Project Files
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $ErrorActionPreference = "Stop"
           $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -33,201 +30,187 @@ jobs:
             Remove-Item -Path "main.cpp" -Force
           }
 
-          $headers = @{ "User-Agent" = "GeodeModBuilder" }
-          if ($env:GH_TOKEN) { $headers["Authorization"] = "Bearer $env:GH_TOKEN" }
-          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/geode-sdk/geode/releases/latest" -Headers $headers
-          $sdkVer = $release.tag_name.TrimStart('v')
-
-          $gdWin = "2.2081"
-          try {
-            $cmakeConfig = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/geode-sdk/geode/$($release.tag_name)/cmake/PlatformWin.cmake" -Headers $headers
-            if ($cmakeConfig -match 'GEODE_GD_VERSION\s+([0-9\.]+)') {
-              $gdWin = $Matches[1]
-            }
-          } catch {}
-
-          Write-Host "Target Geode SDK: $sdkVer | GD Win: $gdWin"
-
-          $modData = [ordered]@{
-            geode       = $sdkVer
-            gd          = @{ win = $gdWin }
-            id          = "yingseo.notear-fps"
-            name        = "NoTear FPS Auto"
-            version     = "v1.0.0"
-            developer   = "YingSeo"
-            description = "Tu dong triet tieu xe hinh (Screen Tearing) khi Unlock FPS ngay khi vao game."
+          # 1. mod.json chuan
+          $modJson = @"
+          {
+              "geode": "v5.11.2",
+              "gd": {
+                  "win": "2.2081"
+              },
+              "id": "yingseo.notear-fps",
+              "name": "NoTear FPS Auto",
+              "version": "1.0.0",
+              "developer": "YingSeo",
+              "description": "Tu dong triet tieu xe hinh (Screen Tearing) khi Unlock FPS ngay khi vao game."
           }
-          $modJsonStr = $modData | ConvertTo-Json -Depth 5
-          [System.IO.File]::WriteAllText((Join-Path $PWD "mod.json"), $modJsonStr, $utf8NoBom)
+          "@
+          [System.IO.File]::WriteAllText((Join-Path $PWD "mod.json"), $modJson, $utf8NoBom)
 
-          $cmakeLines = @(
-            'cmake_minimum_required(VERSION 3.21)',
-            'set(CMAKE_CXX_STANDARD 23)',
-            'set(CMAKE_CXX_STANDARD_REQUIRED ON)',
-            'set(CMAKE_CXX_EXTENSIONS OFF)',
-            'set(CMAKE_CXX_VISIBILITY_PRESET hidden)',
-            'project(NoTearFPS VERSION 1.0.0)',
-            'add_library(${PROJECT_NAME} SHARED src/main.cpp)',
-            'if (NOT DEFINED ENV{GEODE_SDK})',
-            '    message(FATAL_ERROR "Unable to find Geode SDK!")',
-            'endif()',
-            'add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)',
-            'if (WIN32)',
-            '    target_link_libraries(${PROJECT_NAME} PRIVATE opengl32 dwmapi user32 gdi32 winmm)',
-            'endif()',
-            'setup_geode_mod(${PROJECT_NAME})'
-          )
-          [System.IO.File]::WriteAllLines((Join-Path $PWD "CMakeLists.txt"), $cmakeLines, $utf8NoBom)
+          # 2. CMakeLists.txt chuan
+          $cmake = @'
+          cmake_minimum_required(VERSION 3.21)
+          project(NoTearFPS VERSION 1.0.0)
 
-          $cppLines = @(
-            '#include <Geode/Geode.hpp>',
-            '#include <Geode/modify/CCDirector.hpp>',
-            '#include <Geode/modify/CCScheduler.hpp>',
-            '#include <Geode/modify/CCEGLView.hpp>',
-            '',
-            'using namespace geode::prelude;',
-            '',
-            'namespace AutoNoTear {',
-            '    bool shouldPresentFrame = true;',
-            '    bool sceneHiddenByMod = false;',
-            '    bool savedSceneVisibility = true;',
-            '',
-            '    #ifdef GEODE_IS_WINDOWS',
-            '    LARGE_INTEGER qpcFreq{};',
-            '    LARGE_INTEGER nextPresentQpc{};',
-            '    int64_t refreshPeriodTicks = 0;',
-            '    bool initialized = false;',
-            '',
-            '    using PFNWGLSWAPINTERVALEXTPROC = BOOL(WINAPI*)(int);',
-            '    using PFNWGLGETPROCADDRESS = PROC(WINAPI*)(LPCSTR);',
-            '    using PFNTIMEBEGINPERIOD = UINT(WINAPI*)(UINT);',
-            '',
-            '    PFNWGLSWAPINTERVALEXTPROC pSwapInterval = nullptr;',
-            '    bool glHooked = false;',
-            '',
-            '    void initEngine() {',
-            '        if (initialized) return;',
-            '        initialized = true;',
-            '        QueryPerformanceFrequency(&qpcFreq);',
-            '        QueryPerformanceCounter(&nextPresentQpc);',
-            '        if (HMODULE hWinmm = LoadLibraryA("winmm.dll")) {',
-            '            if (auto pTimeBegin = reinterpret_cast<PFNTIMEBEGINPERIOD>(GetProcAddress(hWinmm, "timeBeginPeriod"))) {',
-            '                pTimeBegin(1);',
-            '            }',
-            '        }',
-            '        DEVMODEA dm{};',
-            '        dm.dmSize = sizeof(DEVMODEA);',
-            '        double hz = 60.0;',
-            '        if (EnumDisplaySettingsA(nullptr, ENUM_CURRENT_SETTINGS, &dm) && dm.dmDisplayFrequency >= 30) {',
-            '            hz = static_cast<double>(dm.dmDisplayFrequency);',
-            '        }',
-            '        refreshPeriodTicks = static_cast<int64_t>(static_cast<double>(qpcFreq.QuadPart) / hz);',
-            '    }',
-            '',
-            '    void syncVBlankPhase() {',
-            '        if (!glHooked) {',
-            '            glHooked = true;',
-            '            if (HMODULE hGl = GetModuleHandleA("opengl32.dll")) {',
-            '                if (auto pGetProc = reinterpret_cast<PFNWGLGETPROCADDRESS>(GetProcAddress(hGl, "wglGetProcAddress"))) {',
-            '                    pSwapInterval = reinterpret_cast<PFNWGLSWAPINTERVALEXTPROC>(pGetProc("wglSwapIntervalEXT"));',
-            '                }',
-            '            }',
-            '        }',
-            '        if (pSwapInterval) {',
-            '            pSwapInterval(0);',
-            '        }',
-            '        LARGE_INTEGER now{};',
-            '        QueryPerformanceCounter(&now);',
-            '        int64_t remainingTicks = nextPresentQpc.QuadPart - now.QuadPart;',
-            '        double remainingMs = (static_cast<double>(remainingTicks) * 1000.0) / static_cast<double>(qpcFreq.QuadPart);',
-            '        if (remainingMs > 0.0 && remainingMs < 1.8) {',
-            '            while (true) {',
-            '                QueryPerformanceCounter(&now);',
-            '                if (now.QuadPart >= nextPresentQpc.QuadPart) break;',
-            '                YieldProcessor();',
-            '            }',
-            '        }',
-            '    }',
-            '    #endif',
-            '',
-            '    void restoreScene(cocos2d::CCDirector* director) {',
-            '        if (sceneHiddenByMod && director) {',
-            '            if (auto* scene = director->getRunningScene()) {',
-            '                scene->setVisible(savedSceneVisibility);',
-            '            }',
-            '            sceneHiddenByMod = false;',
-            '        }',
-            '    }',
-            '}',
-            '',
-            'class $modify(AutoNoTearDirector, cocos2d::CCDirector) {',
-            '    void drawScene() {',
-            '        #ifdef GEODE_IS_WINDOWS',
-            '        AutoNoTear::initEngine();',
-            '        LARGE_INTEGER now{};',
-            '        QueryPerformanceCounter(&now);',
-            '        if (now.QuadPart >= AutoNoTear::nextPresentQpc.QuadPart) {',
-            '            AutoNoTear::shouldPresentFrame = true;',
-            '            AutoNoTear::nextPresentQpc.QuadPart += AutoNoTear::refreshPeriodTicks;',
-            '            if (now.QuadPart >= AutoNoTear::nextPresentQpc.QuadPart) {',
-            '                AutoNoTear::nextPresentQpc.QuadPart = now.QuadPart + AutoNoTear::refreshPeriodTicks;',
-            '            }',
-            '        } else {',
-            '            AutoNoTear::shouldPresentFrame = false;',
-            '        }',
-            '        #endif',
-            '        CCDirector::drawScene();',
-            '        AutoNoTear::restoreScene(this);',
-            '    }',
-            '};',
-            '',
-            'class $modify(AutoNoTearScheduler, cocos2d::CCScheduler) {',
-            '    void update(float dt) {',
-            '        CCScheduler::update(dt);',
-            '        if (!AutoNoTear::shouldPresentFrame) {',
-            '            if (auto* dir = cocos2d::CCDirector::sharedDirector()) {',
-            '                if (auto* scene = dir->getRunningScene()) {',
-            '                    AutoNoTear::savedSceneVisibility = scene->isVisible();',
-            '                    scene->setVisible(false);',
-            '                    AutoNoTear::sceneHiddenByMod = true;',
-            '                }',
-            '            }',
-            '        }',
-            '    }',
-            '};',
-            '',
-            'class $modify(AutoNoTearEGLView, cocos2d::CCEGLView) {',
-            '    void swapBuffers() {',
-            '        AutoNoTear::restoreScene(cocos2d::CCDirector::sharedDirector());',
-            '        if (!AutoNoTear::shouldPresentFrame) {',
-            '            return;',
-            '        }',
-            '        #ifdef GEODE_IS_WINDOWS',
-            '        AutoNoTear::syncVBlankPhase();',
-            '        #endif',
-            '        CCEGLView::swapBuffers();',
-            '    }',
-            '};',
-            '',
-            '$on_mod(Loaded) {',
-            '    #ifdef GEODE_IS_WINDOWS',
-            '    AutoNoTear::initEngine();',
-            '    #endif',
-            '}'
-          )
-          [System.IO.File]::WriteAllLines((Join-Path $PWD "src/main.cpp"), $cppLines, $utf8NoBom)
+          add_library(${PROJECT_NAME} SHARED src/main.cpp)
+
+          if (NOT DEFINED ENV{GEODE_SDK})
+              message(FATAL_ERROR "Unable to find Geode SDK!")
+          endif()
+
+          add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
+
+          if (WIN32)
+              target_link_libraries(${PROJECT_NAME} PRIVATE opengl32 dwmapi user32 gdi32 winmm)
+          endif()
+
+          setup_geode_mod(${PROJECT_NAME})
+          '@
+          [System.IO.File]::WriteAllLines((Join-Path $PWD "CMakeLists.txt"), $cmake, $utf8NoBom)
+
+          # 3. src/main.cpp chong xeu hinh tu dong
+          $cpp = @'
+          #include <Geode/Geode.hpp>
+          #include <Geode/modify/CCDirector.hpp>
+          #include <Geode/modify/CCScheduler.hpp>
+          #include <Geode/modify/CCEGLView.hpp>
+
+          using namespace geode::prelude;
+
+          namespace AutoNoTear {
+              bool shouldPresentFrame = true;
+              bool sceneHiddenByMod = false;
+              bool savedSceneVisibility = true;
+
+              #ifdef GEODE_IS_WINDOWS
+              LARGE_INTEGER qpcFreq{};
+              LARGE_INTEGER nextPresentQpc{};
+              int64_t refreshPeriodTicks = 0;
+              bool initialized = false;
+
+              using PFNWGLSWAPINTERVALEXTPROC = BOOL(WINAPI*)(int);
+              using PFNWGLGETPROCADDRESS = PROC(WINAPI*)(LPCSTR);
+              using PFNTIMEBEGINPERIOD = UINT(WINAPI*)(UINT);
+
+              PFNWGLSWAPINTERVALEXTPROC pSwapInterval = nullptr;
+              bool glHooked = false;
+
+              void initEngine() {
+                  if (initialized) return;
+                  initialized = true;
+                  QueryPerformanceFrequency(&qpcFreq);
+                  QueryPerformanceCounter(&nextPresentQpc);
+                  if (HMODULE hWinmm = LoadLibraryA("winmm.dll")) {
+                      if (auto pTimeBegin = reinterpret_cast<PFNTIMEBEGINPERIOD>(GetProcAddress(hWinmm, "timeBeginPeriod"))) {
+                          pTimeBegin(1);
+                      }
+                  }
+                  DEVMODEA dm{};
+                  dm.dmSize = sizeof(DEVMODEA);
+                  double hz = 60.0;
+                  if (EnumDisplaySettingsA(nullptr, ENUM_CURRENT_SETTINGS, &dm) && dm.dmDisplayFrequency >= 30) {
+                      hz = static_cast<double>(dm.dmDisplayFrequency);
+                  }
+                  refreshPeriodTicks = static_cast<int64_t>(static_cast<double>(qpcFreq.QuadPart) / hz);
+              }
+
+              void syncVBlankPhase() {
+                  if (!glHooked) {
+                      glHooked = true;
+                      if (HMODULE hGl = GetModuleHandleA("opengl32.dll")) {
+                          if (auto pGetProc = reinterpret_cast<PFNWGLGETPROCADDRESS>(GetProcAddress(hGl, "wglGetProcAddress"))) {
+                              pSwapInterval = reinterpret_cast<PFNWGLSWAPINTERVALEXTPROC>(pGetProc("wglSwapIntervalEXT"));
+                          }
+                      }
+                  }
+                  if (pSwapInterval) {
+                      pSwapInterval(0);
+                  }
+                  LARGE_INTEGER now{};
+                  QueryPerformanceCounter(&now);
+                  int64_t remainingTicks = nextPresentQpc.QuadPart - now.QuadPart;
+                  double remainingMs = (static_cast<double>(remainingTicks) * 1000.0) / static_cast<double>(qpcFreq.QuadPart);
+                  if (remainingMs > 0.0 && remainingMs < 1.8) {
+                      while (true) {
+                          QueryPerformanceCounter(&now);
+                          if (now.QuadPart >= nextPresentQpc.QuadPart) break;
+                          YieldProcessor();
+                      }
+                  }
+              }
+              #endif
+
+              void restoreScene(cocos2d::CCDirector* director) {
+                  if (sceneHiddenByMod && director) {
+                      if (auto* scene = director->getRunningScene()) {
+                          scene->setVisible(savedSceneVisibility);
+                      }
+                      sceneHiddenByMod = false;
+                  }
+              }
+          }
+
+          class $modify(AutoNoTearDirector, cocos2d::CCDirector) {
+              void drawScene() {
+                  #ifdef GEODE_IS_WINDOWS
+                  AutoNoTear::initEngine();
+                  LARGE_INTEGER now{};
+                  QueryPerformanceCounter(&now);
+                  if (now.QuadPart >= AutoNoTear::nextPresentQpc.QuadPart) {
+                      AutoNoTear::shouldPresentFrame = true;
+                      AutoNoTear::nextPresentQpc.QuadPart += AutoNoTear::refreshPeriodTicks;
+                      if (now.QuadPart >= AutoNoTear::nextPresentQpc.QuadPart) {
+                          AutoNoTear::nextPresentQpc.QuadPart = now.QuadPart + AutoNoTear::refreshPeriodTicks;
+                      }
+                  } else {
+                      AutoNoTear::shouldPresentFrame = false;
+                  }
+                  #endif
+                  CCDirector::drawScene();
+                  AutoNoTear::restoreScene(this);
+              }
+          };
+
+          class $modify(AutoNoTearScheduler, cocos2d::CCScheduler) {
+              void update(float dt) {
+                  CCScheduler::update(dt);
+                  if (!AutoNoTear::shouldPresentFrame) {
+                      if (auto* dir = cocos2d::CCDirector::sharedDirector()) {
+                          if (auto* scene = dir->getRunningScene()) {
+                              AutoNoTear::savedSceneVisibility = scene->isVisible();
+                              scene->setVisible(false);
+                              AutoNoTear::sceneHiddenByMod = true;
+                          }
+                      }
+                  }
+              }
+          };
+
+          class $modify(AutoNoTearEGLView, cocos2d::CCEGLView) {
+              void swapBuffers() {
+                  AutoNoTear::restoreScene(cocos2d::CCDirector::sharedDirector());
+                  if (!AutoNoTear::shouldPresentFrame) {
+                      return;
+                  }
+                  #ifdef GEODE_IS_WINDOWS
+                  AutoNoTear::syncVBlankPhase();
+                  #endif
+                  CCEGLView::swapBuffers();
+              }
+          };
+
+          $on_mod(Loaded) {
+              #ifdef GEODE_IS_WINDOWS
+              AutoNoTear::initEngine();
+              #endif
+          }
+          '@
+          [System.IO.File]::WriteAllLines((Join-Path $PWD "src/main.cpp"), $cpp, $utf8NoBom)
 
       - name: Build Geode Mod
         uses: geode-sdk/build-geode-mod@main
-        id: build
-        with:
-          sdk: latest
-          config: Release
 
-      - name: Upload .geode Artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: NoTearFPS-Auto
-          path: |
-            ${{ steps.build.outputs.build-output }}
-            **/*.geode
+          path: build/*.geode
