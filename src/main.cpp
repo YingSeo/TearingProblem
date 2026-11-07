@@ -1,20 +1,7 @@
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
 #include <Geode/Geode.hpp>
 #include <Geode/modify/CCDirector.hpp>
 #include <Geode/modify/CCScheduler.hpp>
 #include <Geode/modify/CCEGLView.hpp>
-
-#ifdef GEODE_IS_WINDOWS
-#include <Windows.h>
-#include <dwmapi.h>
-#include <intrin.h>
-
-#pragma comment(lib, "opengl32.lib")
-#pragma comment(lib, "dwmapi.lib")
-#pragma comment(lib, "user32.lib")
-#pragma comment(lib, "gdi32.lib")
-#endif
 
 using namespace geode::prelude;
 
@@ -27,29 +14,40 @@ namespace AutoNoTear {
     LARGE_INTEGER qpcFreq{};
     LARGE_INTEGER nextPresentQpc{};
     int64_t refreshPeriodTicks = 0;
+    bool initialized = false;
 
-    HWND cachedHwnd = nullptr;
-    bool borderlessApplied = false;
+    using PFNWGLSWAPINTERVALEXTPROC = BOOL(WINAPI*)(int);
+    using PFNWGLGETPROCADDRESS = PROC(WINAPI*)(LPCSTR);
+    using PFNTIMEBEGINPERIOD = UINT(WINAPI*)(UINT);
+    using PFNDWMFLUSH = HRESULT(WINAPI*)(void);
 
-    using PFNWGLSWAPINTERVALEXTPROC = BOOL(WINAPI*)(int interval);
-    using PFNTIMEBEGINPERIOD = UINT(WINAPI*)(UINT uPeriod);
+    PFNWGLSWAPINTERVALEXTPROC pSwapInterval = nullptr;
+    PFNDWMFLUSH pDwmFlush = nullptr;
+    bool glHooked = false;
 
-    PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT = nullptr;
-    bool wglInitialized = false;
-
-    void initHardwareTimer() {
-        if (qpcFreq.QuadPart != 0) return;
+    void initEngine() {
+        if (initialized) return;
+        initialized = true;
 
         QueryPerformanceFrequency(&qpcFreq);
         QueryPerformanceCounter(&nextPresentQpc);
 
+        // Bat bo dinh thoi 1ms cua Windows de on dinh xung nhip 240Hz/360Hz
         if (HMODULE hWinmm = LoadLibraryA("winmm.dll")) {
-            if (auto pTimeBeginPeriod = reinterpret_cast<PFNTIMEBEGINPERIOD>(
-                    GetProcAddress(hWinmm, "timeBeginPeriod"))) {
-                pTimeBeginPeriod(1);
-            }
+            auto pTimeBegin = reinterpret_cast<PFNTIMEBEGINPERIOD>(
+                GetProcAddress(hWinmm, "timeBeginPeriod")
+            );
+            if (pTimeBegin) pTimeBegin(1);
         }
 
+        // Nap DwmFlush tu dwmapi.dll ma khong can #include <dwmapi.h>
+        if (HMODULE hDwm = LoadLibraryA("dwmapi.dll")) {
+            pDwmFlush = reinterpret_cast<PFNDWMFLUSH>(
+                GetProcAddress(hDwm, "DwmFlush")
+            );
+        }
+
+        // Tu dong doc tan so quet man hinh (60Hz / 75Hz / 120Hz / 144Hz)
         DEVMODEA dm{};
         dm.dmSize = sizeof(DEVMODEA);
         double hz = 60.0;
@@ -59,66 +57,38 @@ namespace AutoNoTear {
         refreshPeriodTicks = static_cast<int64_t>(static_cast<double>(qpcFreq.QuadPart) / hz);
     }
 
-    void applyBorderlessFlip(HWND hwnd) {
-        if (!hwnd || borderlessApplied) return;
-        borderlessApplied = true;
-
-        HMONITOR hMon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-        MONITORINFO mi{};
-        mi.cbSize = sizeof(MONITORINFO);
-        if (GetMonitorInfoA(hMon, &mi)) {
-            RECT winRect{};
-            GetWindowRect(hwnd, &winRect);
-            int monW = mi.rcMonitor.right - mi.rcMonitor.left;
-            int monH = mi.rcMonitor.bottom - mi.rcMonitor.top;
-            int winW = winRect.right - winRect.left;
-            int winH = winRect.bottom - winRect.top;
-
-            if (winW >= monW - 16 && winH >= monH - 16) {
-                LONG_PTR style = GetWindowLongPtrA(hwnd, GWL_STYLE);
-                style &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
-                style |= WS_POPUP | WS_VISIBLE;
-                SetWindowLongPtrA(hwnd, GWL_STYLE, style);
-
-                SetWindowPos(
-                    hwnd, HWND_TOP,
-                    mi.rcMonitor.left, mi.rcMonitor.top,
-                    monW, monH,
-                    SWP_FRAMECHANGED | SWP_NOOWNERZORDER | SWP_SHOWWINDOW
+    void syncVBlankPhase() {
+        if (!glHooked) {
+            glHooked = true;
+            if (HMODULE hGl = GetModuleHandleA("opengl32.dll")) {
+                auto pGetProc = reinterpret_cast<PFNWGLGETPROCADDRESS>(
+                    GetProcAddress(hGl, "wglGetProcAddress")
                 );
+                if (pGetProc) {
+                    pSwapInterval = reinterpret_cast<PFNWGLSWAPINTERVALEXTPROC>(
+                        pGetProc("wglSwapIntervalEXT")
+                    );
+                }
             }
         }
-    }
 
-    void alignSwapToVBlank() {
-        DWM_TIMING_INFO timing{};
-        timing.cbSize = sizeof(DWM_TIMING_INFO);
-        if (FAILED(DwmGetCompositionTimingInfo(nullptr, &timing)) || timing.qpcRefreshPeriod == 0) {
-            return;
+        // Tat V-Sync truyen thong de khong khoa FPS vat ly
+        if (pSwapInterval) {
+            pSwapInterval(0);
         }
 
-        refreshPeriodTicks = static_cast<int64_t>(timing.qpcRefreshPeriod);
-
+        // Can chinh diem lat khung hinh sat moc VBlank de xoa vet xe ngang
         LARGE_INTEGER now{};
         QueryPerformanceCounter(&now);
+        int64_t remainingTicks = nextPresentQpc.QuadPart - now.QuadPart;
+        double remainingMs = (static_cast<double>(remainingTicks) * 1000.0) /
+                             static_cast<double>(qpcFreq.QuadPart);
 
-        int64_t period = refreshPeriodTicks;
-        int64_t offsetTicks = -(400LL * qpcFreq.QuadPart) / 1000000LL; // -400us truoc VBlank
-        int64_t targetVBlank = static_cast<int64_t>(timing.qpcVBlank) + offsetTicks;
-
-        if (now.QuadPart > targetVBlank) {
-            int64_t passed = (now.QuadPart - targetVBlank) / period + 1;
-            targetVBlank += passed * period;
-        }
-
-        int64_t waitTicks = targetVBlank - now.QuadPart;
-        double waitMs = (static_cast<double>(waitTicks) * 1000.0) / static_cast<double>(qpcFreq.QuadPart);
-
-        if (waitMs > 0.0 && waitMs < 2.2) {
+        if (remainingMs > 0.0 && remainingMs < 2.0) {
             while (true) {
                 QueryPerformanceCounter(&now);
-                if (now.QuadPart >= targetVBlank) break;
-                _mm_pause();
+                if (now.QuadPart >= nextPresentQpc.QuadPart) break;
+                YieldProcessor();
             }
         }
     }
@@ -137,7 +107,7 @@ namespace AutoNoTear {
 class $modify(AutoNoTearDirector, cocos2d::CCDirector) {
     void drawScene() {
         #ifdef GEODE_IS_WINDOWS
-        AutoNoTear::initHardwareTimer();
+        AutoNoTear::initEngine();
 
         LARGE_INTEGER now{};
         QueryPerformanceCounter(&now);
@@ -160,10 +130,10 @@ class $modify(AutoNoTearDirector, cocos2d::CCDirector) {
 
 class $modify(AutoNoTearScheduler, cocos2d::CCScheduler) {
     void update(float dt) {
-        // Luon cap nhat Physics va Input o toc do Unlock FPS (240/360Hz)
+        // Giu nguyen Physics & Input o toc do Unlock FPS (240Hz/360Hz)
         CCScheduler::update(dt);
 
-        // Tam an Scene o cac frame trung gian de khong ve thua gay xe hinh
+        // Tam an Scene o cac frame trung gian de khong xuat khung hinh lech nhip quet 60Hz
         if (!AutoNoTear::shouldPresentFrame) {
             if (auto* dir = cocos2d::CCDirector::sharedDirector()) {
                 if (auto* scene = dir->getRunningScene()) {
@@ -185,25 +155,7 @@ class $modify(AutoNoTearEGLView, cocos2d::CCEGLView) {
         }
 
         #ifdef GEODE_IS_WINDOWS
-        if (!AutoNoTear::wglInitialized) {
-            AutoNoTear::wglInitialized = true;
-            AutoNoTear::wglSwapIntervalEXT = reinterpret_cast<AutoNoTear::PFNWGLSWAPINTERVALEXTPROC>(
-                wglGetProcAddress("wglSwapIntervalEXT")
-            );
-            if (HDC hdc = wglGetCurrentDC()) {
-                AutoNoTear::cachedHwnd = WindowFromDC(hdc);
-            }
-        }
-
-        if (AutoNoTear::cachedHwnd && !AutoNoTear::borderlessApplied) {
-            AutoNoTear::applyBorderlessFlip(AutoNoTear::cachedHwnd);
-        }
-
-        if (AutoNoTear::wglSwapIntervalEXT) {
-            AutoNoTear::wglSwapIntervalEXT(0);
-        }
-
-        AutoNoTear::alignSwapToVBlank();
+        AutoNoTear::syncVBlankPhase();
         #endif
 
         CCEGLView::swapBuffers();
@@ -212,6 +164,6 @@ class $modify(AutoNoTearEGLView, cocos2d::CCEGLView) {
 
 $on_mod(Loaded) {
     #ifdef GEODE_IS_WINDOWS
-    AutoNoTear::initHardwareTimer();
+    AutoNoTear::initEngine();
     #endif
 }
