@@ -18,7 +18,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Generate Icon, Docs, Config & Anti-Tear Source
+      - name: Generate Icon, Docs, Config and Source
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
@@ -31,83 +31,74 @@ jobs:
             Remove-Item -Path "main.cpp" -Force
           }
 
-          # 1. Tao logo.png (256x256) chuan cu phap PowerShell (-ArgumentList)
+          # 1. Generate 256x256 logo.png without Font overload errors
           Add-Type -AssemblyName System.Drawing
-          $bmp = New-Object System.Drawing.Bitmap -ArgumentList 256, 256
+          $bmp = New-Object System.Drawing.Bitmap(256, 256)
           $g = [System.Drawing.Graphics]::FromImage($bmp)
           $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-          $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
-          $g.Clear([System.Drawing.Color]::FromArgb(255, 12, 16, 28))
+          $g.Clear([System.Drawing.Color]::FromArgb(255, 12, 16, 30))
 
-          $penCyan = New-Object System.Drawing.Pen -ArgumentList ([System.Drawing.Color]::FromArgb(255, 0, 229, 255)), 8
-          $penPurple = New-Object System.Drawing.Pen -ArgumentList ([System.Drawing.Color]::FromArgb(255, 110, 40, 255)), 4
-          $g.DrawRectangle($penCyan, 14, 14, 228, 228)
-          $g.DrawRectangle($penPurple, 26, 26, 204, 204)
+          $bBgInner = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 20, 28, 52))
+          $g.FillRectangle($bBgInner, 24, 24, 208, 208)
 
-          $penWave = New-Object System.Drawing.Pen -ArgumentList ([System.Drawing.Color]::FromArgb(255, 0, 255, 180)), 7
-          $g.DrawLine($penWave, 42, 128, 94, 128)
-          $g.DrawLine($penWave, 94, 128, 114, 76)
-          $g.DrawLine($penWave, 114, 76, 142, 180)
-          $g.DrawLine($penWave, 142, 180, 162, 128)
-          $g.DrawLine($penWave, 162, 128, 214, 128)
+          $pCyan = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(255, 0, 229, 255), 8)
+          $pPurple = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(255, 124, 77, 255), 4)
+          $pGreen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(255, 0, 255, 170), 8)
 
-          $fontTitle = New-Object System.Drawing.Font -ArgumentList "Arial", 22, ([System.Drawing.FontStyle]::Bold)
-          $fontSub = New-Object System.Drawing.Font -ArgumentList "Arial", 13, ([System.Drawing.FontStyle]::Bold)
-          $brushWhite = New-Object System.Drawing.SolidBrush -ArgumentList ([System.Drawing.Color]::FromArgb(255, 255, 255, 255))
-          $brushCyan = New-Object System.Drawing.SolidBrush -ArgumentList ([System.Drawing.Color]::FromArgb(255, 0, 229, 255))
-          $sf = New-Object System.Drawing.StringFormat
-          $sf.Alignment = [System.Drawing.StringAlignment]::Center
+          $g.DrawRectangle($pCyan, 16, 16, 224, 224)
+          $g.DrawRectangle($pPurple, 28, 28, 200, 200)
 
-          $rectTitle = New-Object System.Drawing.RectangleF -ArgumentList 0, 38, 256, 42
-          $rectSub = New-Object System.Drawing.RectangleF -ArgumentList 0, 186, 256, 36
-          $g.DrawString("NO TEAR", $fontTitle, $brushWhite, $rectTitle, $sf)
-          $g.DrawString("FPS SYNC", $fontSub, $brushCyan, $rectSub, $sf)
+          # Monitor Frame Icon
+          $g.DrawRectangle($pCyan, 52, 60, 152, 98)
+          $bCyan = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 0, 229, 255))
+          $g.FillRectangle($bCyan, 112, 158, 32, 20)
+          $g.FillRectangle($bCyan, 80, 178, 96, 12)
+
+          # VBlank Sync Pulse Wave inside Monitor
+          $g.DrawLine($pGreen, 66, 109, 102, 109)
+          $g.DrawLine($pGreen, 102, 109, 118, 76)
+          $g.DrawLine($pGreen, 118, 76, 138, 142)
+          $g.DrawLine($pGreen, 138, 142, 154, 109)
+          $g.DrawLine($pGreen, 154, 109, 190, 109)
 
           $g.Dispose()
-          $logoPath = Join-Path $PWD "logo.png"
-          $bmp.Save($logoPath, [System.Drawing.Imaging.ImageFormat]::Png)
+          $bmp.Save((Join-Path $PWD "logo.png"), [System.Drawing.Imaging.ImageFormat]::Png)
           $bmp.Dispose()
 
-          if (-not (Test-Path $logoPath)) {
-            Write-Error "Failed to create logo.png!"
-            exit 1
-          }
-
-          # 2. Tao about.md de hien thi day du trong tab Description cua Geode
+          # 2. Generate about.md for Description tab
           $aboutLines = @(
             '# <cy>NoTear FPS</c>',
             '',
-            'Tu dong triet tieu hoan toan hien tuong **xe man hinh / soc nhieu ngang (Screen Tearing)** khi bat **Unlock FPS** trong Geometry Dash 2.2081.',
+            'Automatically eliminates **screen tearing (horizontal glitch lines)** when **Unlock FPS** is enabled in Geometry Dash 2.2081.',
             '',
-            '### <cg>Cac tinh nang tu dong:</c>',
-            '- **DWM Composed Anti-Tear Lock:** Ngat che do Direct-Flip gay xe hinh tren Windows 11, ep khung hinh di qua bo dem ba (Triple-Buffered VBlank) cua DWM.',
-            '- **Smart Render Pacing:** Giu nguyen 100% toc do vat ly va do nhay click o 120 / 240 / 360 / 480 FPS nhung dong bo dau ra OpenGL khop voi tan so quet man hinh.',
-            '- **Zero Input Lag & Plug-and-Play:** Tu dong chay ngam ngay khi vao game, khong can nut bam hay cau hinh.'
+            '### <cg>How it works:</c>',
+            '- **Full Unlock FPS Physics:** Keeps game physics, collisions, and click input running at 100% of your unlocked FPS (120 / 240 / 360 / 480 FPS).',
+            '- **Hardware VBlank Lock:** Completes OpenGL rendering via `glFinish` and locks buffer presentation to the exact monitor VBlank interval (`wglSwapIntervalEXT` + `DwmFlush`).',
+            '- **Plug and Play:** Works automatically in the background with zero configuration or menus.'
           )
           [System.IO.File]::WriteAllLines((Join-Path $PWD "about.md"), $aboutLines, $utf8NoBom)
 
-          # 3. Tao changelog.md de hien thi trong tab Changelog cua Geode
+          # 3. Generate changelog.md for Changelog tab
           $changelogLines = @(
-            '# v2.0.0',
-            '- Sua loi mod bi Geode tu dong chuyen sang trang thai Disabled.',
-            '- Bổ sung đầy đủ Icon (logo.png), Description (about.md) và Tags.',
-            '- Nang cap DWM Composed Flip & glFinish VBlank Pacing xoa triet de soc nhieu man hinh khi Unlock FPS.'
+            '# v2.1.0',
+            '- Fixed mod icon, description, changelog, and tags display in Geode.',
+            '- Fixed automatic activation on startup (no longer stuck in Disabled state).',
+            '- Upgraded VBlank phase lock with glFinish and DwmFlush fallback to completely eliminate screen tearing.'
           )
           [System.IO.File]::WriteAllLines((Join-Path $PWD "changelog.md"), $changelogLines, $utf8NoBom)
 
-          # 4. Tao mod.json voi ID moi (tu dong Enabled khi cai) va day du Tags
+          # 4. Generate mod.json
           $modJsonLines = @(
             '{',
             '    "geode": "5.3.0",',
             '    "gd": {',
             '        "win": "2.2081"',
             '    },',
-            '    "id": "yingseo.notear-fps-v2",',
+            '    "id": "yingseo.notear-fps-pro",',
             '    "name": "NoTear FPS",',
-            '    "version": "v2.0.0",',
+            '    "version": "v2.1.0",',
             '    "developer": "YingSeo",',
-            '    "description": "Tu dong triet tieu soc nhieu va xe man hinh (Screen Tearing) khi bat Unlock FPS trong Geometry Dash 2.2081.",',
-            '    "early-load": true,',
+            '    "description": "Automatically fixes screen tearing when Unlock FPS is enabled in Geometry Dash 2.2081.",',
             '    "tags": [',
             '        "performance",',
             '        "enhancement",',
@@ -117,7 +108,7 @@ jobs:
           )
           [System.IO.File]::WriteAllLines((Join-Path $PWD "mod.json"), $modJsonLines, $utf8NoBom)
 
-          # 5. Tao CMakeLists.txt tu dong khop phien ban Geode SDK moi nhat
+          # 5. Generate CMakeLists.txt with automatic Geode SDK version sync
           $cmakeLines = @(
             'cmake_minimum_required(VERSION 3.21)',
             'set(CMAKE_CXX_STANDARD 23)',
@@ -125,7 +116,7 @@ jobs:
             'set(CMAKE_CXX_EXTENSIONS OFF)',
             'set(CMAKE_CXX_VISIBILITY_PRESET hidden)',
             '',
-            'project(NoTearFPS VERSION 2.0.0)',
+            'project(NoTearFPS VERSION 2.1.0)',
             '',
             'add_library(${PROJECT_NAME} SHARED src/main.cpp)',
             '',
@@ -154,7 +145,7 @@ jobs:
           )
           [System.IO.File]::WriteAllLines((Join-Path $PWD "CMakeLists.txt"), $cmakeLines, $utf8NoBom)
 
-          # 6. Tao src/main.cpp (Khong dung luong ngam gay crash, DWM Composed Flip + Render Pacing)
+          # 6. Generate src/main.cpp
           $cppLines = @(
             '#include <Geode/Geode.hpp>',
             '#include <Geode/modify/CCDirector.hpp>',
@@ -165,37 +156,36 @@ jobs:
             '',
             'namespace TearFix {',
             '    int64_t qpcFreq = 0;',
-            '    int64_t lastTickQpc = 0;',
-            '    int64_t nextPresentQpc = 0;',
+            '    int64_t lastVBlankQpc = 0;',
             '    int64_t refreshPeriodTicks = 0;',
             '',
             '    bool initialized = false;',
             '    bool shouldPresentFrame = true;',
-            '    bool overrideSchedulerDt = false;',
-            '    float currentStepDt = 1.0f / 240.0f;',
+            '    bool useDwmVBlankSync = false;',
+            '',
+            '    cocos2d::CCScene* hiddenScene = nullptr;',
+            '    bool savedSceneVisible = true;',
             '    cocos2d::CCScene* lastScenePtr = nullptr;',
+            '    uint32_t frameCounter = 0;',
             '',
             '    #ifdef GEODE_IS_WINDOWS',
             '    using PFN_timeBeginPeriod = unsigned int(__stdcall*)(unsigned int);',
+            '    using PFN_DwmFlush = long(__stdcall*)(void);',
+            '    using PFN_GetDeviceCaps = int(__stdcall*)(HDC, int);',
             '    using PFN_wglGetProcAddress = void*(__stdcall*)(const char*);',
             '    using PFN_wglGetCurrentDC = HDC(__stdcall*)(void);',
             '    using PFN_wglSwapIntervalEXT = int(__stdcall*)(int);',
             '    using PFN_glFinish = void(__stdcall*)(void);',
-            '    using PFN_GetDeviceCaps = int(__stdcall*)(HDC, int);',
-            '    using PFN_ChangeDisplaySettingsA = long(__stdcall*)(void*, unsigned long);',
             '',
+            '    PFN_DwmFlush pDwmFlush = nullptr;',
+            '    PFN_GetDeviceCaps pGetDeviceCaps = nullptr;',
             '    PFN_wglGetProcAddress pGetProcAddress = nullptr;',
             '    PFN_wglGetCurrentDC pGetCurrentDC = nullptr;',
             '    PFN_wglSwapIntervalEXT pSwapInterval = nullptr;',
             '    PFN_glFinish pGlFinish = nullptr;',
-            '    PFN_GetDeviceCaps pGetDeviceCaps = nullptr;',
-            '    PFN_ChangeDisplaySettingsA pChangeDisplaySettingsA = nullptr;',
-            '',
             '    bool glResolved = false;',
-            '    HWND cachedHwnd = nullptr;',
-            '    uint32_t windowCheckCounter = 0;',
             '',
-            '    void ensureInitialized() {',
+            '    void ensureInit() {',
             '        if (initialized) return;',
             '        initialized = true;',
             '',
@@ -203,8 +193,7 @@ jobs:
             '        QueryPerformanceFrequency(&freq);',
             '        QueryPerformanceCounter(&now);',
             '        qpcFreq = freq.QuadPart;',
-            '        lastTickQpc = now.QuadPart;',
-            '        nextPresentQpc = now.QuadPart;',
+            '        lastVBlankQpc = now.QuadPart;',
             '        refreshPeriodTicks = qpcFreq / 60;',
             '',
             '        if (HMODULE hWinmm = LoadLibraryA("winmm.dll")) {',
@@ -212,56 +201,15 @@ jobs:
             '                pTimeBegin(1);',
             '            }',
             '        }',
+            '        if (HMODULE hDwm = LoadLibraryA("dwmapi.dll")) {',
+            '            pDwmFlush = reinterpret_cast<PFN_DwmFlush>(GetProcAddress(hDwm, "DwmFlush"));',
+            '        }',
             '        if (HMODULE hGdi = GetModuleHandleA("gdi32.dll")) {',
             '            pGetDeviceCaps = reinterpret_cast<PFN_GetDeviceCaps>(GetProcAddress(hGdi, "GetDeviceCaps"));',
             '        }',
-            '        if (HMODULE hUser = GetModuleHandleA("user32.dll")) {',
-            '            pChangeDisplaySettingsA = reinterpret_cast<PFN_ChangeDisplaySettingsA>(GetProcAddress(hUser, "ChangeDisplaySettingsA"));',
-            '        }',
             '    }',
             '',
-            '    // Chuyen cua so Fullscreen sang DWM Composed Borderless (monH + 1)',
-            '    // de chan Windows 11 Direct-Flip gay xe hinh khi tat V-Sync',
-            '    void enforceDwmComposedWindow(HDC hdc) {',
-            '        if (!hdc) return;',
-            '        HWND hwnd = WindowFromDC(hdc);',
-            '        if (!hwnd) return;',
-            '',
-            '        HMONITOR hMon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);',
-            '        MONITORINFO mi{};',
-            '        mi.cbSize = sizeof(MONITORINFO);',
-            '        if (!GetMonitorInfoA(hMon, &mi)) return;',
-            '',
-            '        int monW = mi.rcMonitor.right - mi.rcMonitor.left;',
-            '        int monH = mi.rcMonitor.bottom - mi.rcMonitor.top;',
-            '',
-            '        RECT winRect{};',
-            '        if (!GetWindowRect(hwnd, &winRect)) return;',
-            '        int winW = winRect.right - winRect.left;',
-            '        int winH = winRect.bottom - winRect.top;',
-            '',
-            '        // Neu cua so dang o che do Fullscreen (khop kich thuoc man hinh),',
-            '        // dat chieu cao monH + 1 (le duoi 1px ngoai man hinh) de ep Windows 11 DWM',
-            '        // kich hoat Triple-Buffered Composition chong xe hinh 100%',
-            '        if (winW >= monW - 4 && winH == monH) {',
-            '            if (pChangeDisplaySettingsA) {',
-            '                pChangeDisplaySettingsA(nullptr, 0);',
-            '            }',
-            '            LONG_PTR style = GetWindowLongPtrA(hwnd, GWL_STYLE);',
-            '            style &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);',
-            '            style |= WS_POPUP | WS_VISIBLE;',
-            '            SetWindowLongPtrA(hwnd, GWL_STYLE, style);',
-            '',
-            '            SetWindowPos(',
-            '                hwnd, HWND_TOP,',
-            '                mi.rcMonitor.left, mi.rcMonitor.top,',
-            '                monW, monH + 1,',
-            '                SWP_FRAMECHANGED | SWP_NOOWNERZORDER | SWP_SHOWWINDOW',
-            '            );',
-            '        }',
-            '    }',
-            '',
-            '    void preparePresentAndSync() {',
+            '    void syncAndPresent(cocos2d::CCEGLView* view) {',
             '        if (!glResolved) {',
             '            glResolved = true;',
             '            if (HMODULE hGl = GetModuleHandleA("opengl32.dll")) {',
@@ -275,92 +223,107 @@ jobs:
             '            pSwapInterval = reinterpret_cast<PFN_wglSwapIntervalEXT>(pGetProcAddress("wglSwapIntervalEXT"));',
             '        }',
             '',
-            '        HDC hdc = pGetCurrentDC ? pGetCurrentDC() : nullptr;',
-            '        if (hdc && (++windowCheckCounter == 1 || windowCheckCounter % 120 == 0)) {',
-            '            // Doc tan so quet man hinh thuc te (VREFRESH = 116)',
-            '            if (pGetDeviceCaps) {',
+            '        if ((++frameCounter == 1 || frameCounter % 180 == 0) && pGetCurrentDC && pGetDeviceCaps) {',
+            '            if (HDC hdc = pGetCurrentDC()) {',
             '                int hz = pGetDeviceCaps(hdc, 116);',
             '                if (hz >= 30 && hz <= 360) {',
             '                    refreshPeriodTicks = qpcFreq / hz;',
             '                }',
             '            }',
-            '            enforceDwmComposedWindow(hdc);',
             '        }',
             '',
+            '        // 1. Lock driver SwapInterval to VBlank (1)',
             '        if (pSwapInterval) {',
-            '            pSwapInterval(0);',
+            '            pSwapInterval(1);',
             '        }',
             '',
-            '        // Bat GPU ve xong 100% khung hinh vao Backbuffer truoc khi dua sang DWM',
+            '        // 2. Finish all GPU draw commands in backbuffer before VBlank flip',
             '        if (pGlFinish) {',
             '            pGlFinish();',
             '        }',
+            '',
+            '        // 3. If Optimus / driver ignores wglSwapIntervalEXT(1), sync directly to DWM VBlank',
+            '        if (useDwmVBlankSync && pDwmFlush) {',
+            '            pDwmFlush();',
+            '        }',
+            '',
+            '        view->CCEGLView::swapBuffers();',
+            '',
+            '        LARGE_INTEGER afterSwap{};',
+            '        QueryPerformanceCounter(&afterSwap);',
+            '        int64_t cycleTicks = afterSwap.QuadPart - lastVBlankQpc;',
+            '',
+            '        if (!useDwmVBlankSync && cycleTicks < (refreshPeriodTicks * 90) / 100) {',
+            '            useDwmVBlankSync = true;',
+            '        }',
+            '        lastVBlankQpc = afterSwap.QuadPart;',
             '    }',
             '    #endif',
+            '',
+            '    void restoreSceneVisibility() {',
+            '        if (hiddenScene != nullptr) {',
+            '            hiddenScene->setVisible(savedSceneVisible);',
+            '            hiddenScene = nullptr;',
+            '        }',
+            '    }',
             '}',
             '',
             'class $modify(TearFixDirector, cocos2d::CCDirector) {',
             '    void drawScene() {',
-            '        #ifdef GEODE_IS_WINDOWS',
-            '        TearFix::ensureInitialized();',
-            '',
-            '        LARGE_INTEGER now{};',
-            '        QueryPerformanceCounter(&now);',
-            '',
-            '        int64_t elapsedTicks = now.QuadPart - TearFix::lastTickQpc;',
-            '        TearFix::lastTickQpc = now.QuadPart;',
-            '',
-            '        double realDt = static_cast<double>(elapsedTicks) / static_cast<double>(TearFix::qpcFreq);',
-            '        if (realDt <= 0.0001 || realDt > 0.1) {',
-            '            realDt = 1.0 / 240.0;',
-            '        }',
-            '        TearFix::currentStepDt = static_cast<float>(realDt);',
-            '',
-            '        cocos2d::CCScene* currentScene = this->getRunningScene();',
-            '        bool sceneChanged = (currentScene == nullptr) || (currentScene != TearFix::lastScenePtr) || (this->m_pNextScene != nullptr);',
-            '        TearFix::lastScenePtr = currentScene;',
-            '',
-            '        if (sceneChanged || this->isPaused() || now.QuadPart >= TearFix::nextPresentQpc) {',
-            '            TearFix::shouldPresentFrame = true;',
-            '            TearFix::nextPresentQpc += TearFix::refreshPeriodTicks;',
-            '            if (now.QuadPart >= TearFix::nextPresentQpc) {',
-            '                TearFix::nextPresentQpc = now.QuadPart + TearFix::refreshPeriodTicks;',
-            '            }',
-            '            TearFix::overrideSchedulerDt = true;',
-            '            CCDirector::drawScene();',
-            '            TearFix::overrideSchedulerDt = false;',
-            '        } else {',
-            '            // Tick vat ly trung gian: Giu nguyen Physics & Input o Unlock FPS, bo qua ve thua',
-            '            TearFix::shouldPresentFrame = false;',
-            '            if (auto* sched = this->getScheduler()) {',
-            '                sched->update(TearFix::currentStepDt);',
-            '            }',
-            '        }',
-            '        #else',
+            '        TearFix::restoreSceneVisibility();',
             '        CCDirector::drawScene();',
-            '        #endif',
+            '        TearFix::restoreSceneVisibility();',
             '    }',
             '};',
             '',
             'class $modify(TearFixScheduler, cocos2d::CCScheduler) {',
             '    void update(float dt) {',
-            '        if (TearFix::overrideSchedulerDt) {',
-            '            dt = TearFix::currentStepDt;',
-            '            TearFix::overrideSchedulerDt = false;',
-            '        }',
+            '        // 1. Run Physics, Collisions & Input at full Unlock FPS (120/240/360/480Hz)',
             '        CCScheduler::update(dt);',
+            '',
+            '        #ifdef GEODE_IS_WINDOWS',
+            '        TearFix::ensureInit();',
+            '',
+            '        auto* dir = cocos2d::CCDirector::sharedDirector();',
+            '        if (!dir) return;',
+            '',
+            '        cocos2d::CCScene* scene = dir->getRunningScene();',
+            '        bool sceneChanged = (scene == nullptr) || (scene != TearFix::lastScenePtr);',
+            '        TearFix::lastScenePtr = scene;',
+            '',
+            '        LARGE_INTEGER now{};',
+            '        QueryPerformanceCounter(&now);',
+            '        int64_t sinceLastVBlank = now.QuadPart - TearFix::lastVBlankQpc;',
+            '        int64_t threshold = (TearFix::refreshPeriodTicks * 82) / 100;',
+            '',
+            '        if (sceneChanged || dir->isPaused() || sinceLastVBlank >= threshold) {',
+            '            TearFix::shouldPresentFrame = true;',
+            '        } else {',
+            '            // Intermediate physics tick: skip OpenGL scene rendering to prevent tearing & GPU load',
+            '            TearFix::shouldPresentFrame = false;',
+            '            if (scene) {',
+            '                TearFix::savedSceneVisible = scene->isVisible();',
+            '                scene->setVisible(false);',
+            '                TearFix::hiddenScene = scene;',
+            '            }',
+            '        }',
+            '        #endif',
             '    }',
             '};',
             '',
             'class $modify(TearFixEGLView, cocos2d::CCEGLView) {',
             '    void swapBuffers() {',
+            '        TearFix::restoreSceneVisibility();',
+            '',
             '        if (!TearFix::shouldPresentFrame) {',
             '            return;',
             '        }',
+            '',
             '        #ifdef GEODE_IS_WINDOWS',
-            '        TearFix::preparePresentAndSync();',
-            '        #endif',
+            '        TearFix::syncAndPresent(this);',
+            '        #else',
             '        CCEGLView::swapBuffers();',
+            '        #endif',
             '    }',
             '};'
           )
@@ -387,5 +350,5 @@ jobs:
       - name: Upload .geode Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NoTearFPS-v2.0.0
+          name: NoTearFPS-v2.1.0
           path: artifact/*.geode
