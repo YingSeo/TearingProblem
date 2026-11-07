@@ -1,53 +1,67 @@
 {
-    "geode": "5.3.0",
+    "geode": "5.11.2",
     "gd": {
         "win": "2.2081"
     },
     "id": "yingseo.notear-fps",
     "name": "NoTear FPS Optimizer",
-    "version": "v1.0.0",
+    "version": "v2.0.0",
     "developer": "YingSeo",
-    "description": "Triet tieu xe hinh (Screen Tearing) khi Unlock FPS trong GD 2.2081 bang Draw Divide & Scanline VBlank Sync.",
+    "description": "Triet tieu xe hinh (Screen Tearing) khi Unlock FPS 240/360Hz bang DWM VBlank Phase-Lock va Smart Draw Divide v2.",
     "settings": {
         "enable-mod": {
             "name": "Bat Anti-Tear Engine",
-            "description": "Kich hoat bo xu ly chong xe hinh khi Unlock FPS.",
+            "description": "Kich hoat bo xu ly chong xe hinh va on dinh frame pacing khi Unlock FPS.",
             "type": "bool",
             "default": true
         },
         "draw-divide": {
-            "name": "Che do Smart Draw Divide (Khuyen dung)",
-            "description": "Giu nguyen do nhay Input/Physics 240-360Hz nhung chi xuat hinh theo Target Render FPS de xoa 100% xe hinh va giam tai GPU.",
+            "name": "Smart Draw Divide v2",
+            "description": "Giu nguyen Physics/Input o 240-360Hz nhung chi xuat khung hinh khop voi tan so man hinh de xoa xe hinh va giam tai GPU.",
+            "type": "bool",
+            "default": true
+        },
+        "auto-refresh-rate": {
+            "name": "Tu dong nhan tan so quet man hinh",
+            "description": "Tu dong doc tan so quet thuc te cua man hinh (60Hz/75Hz/120Hz/144Hz) de khoa pha khung hinh.",
             "type": "bool",
             "default": true
         },
         "render-fps": {
-            "name": "Target Render FPS (Draw Divide)",
-            "description": "So khung hinh hien thi moi giay (Dat 60 cho man hinh 60Hz de khop chu ky quet).",
+            "name": "Target Render FPS (Khi tat Tu dong)",
+            "description": "So khung hinh xuat ra moi giay neu ban muon dat thu cong (Dat 60 cho man hinh 60Hz).",
             "type": "int",
             "default": 60,
-            "min": 60,
+            "min": 30,
             "max": 360
         },
-        "scanline-sync": {
-            "name": "DWM VBlank / Scanline Phase Sync",
-            "description": "Can chinh thoi diem SwapBuffers trung voi chu ky VBlank cua man hinh.",
-            "type": "bool",
-            "default": true
+        "sync-mode": {
+            "name": "Che do VBlank Sync (1-3)",
+            "description": "1 = DWM VBlank Phase-Lock (Do tre thap nhat), 2 = Hardware Adaptive Tear-Control (Chong xe cung), 3 = DWM Composed Flush.",
+            "type": "int",
+            "default": 1,
+            "min": 1,
+            "max": 3
         },
         "scanline-offset-us": {
-            "name": "Scanline Timing Offset (Microseconds)",
-            "description": "Do lech pha so voi VBlank (micro-giay) de day vet xe ra khoi mep man hinh.",
+            "name": "Scanline Phase Offset (Microseconds)",
+            "description": "Tinh chinh vi tri diem lat khung hinh so voi VBlank (mac dinh -400 micro-giay de giau vet xe len mep tren).",
             "type": "int",
-            "default": -500,
-            "min": -5000,
-            "max": 5000
+            "default": -400,
+            "min": -4000,
+            "max": 4000
         },
         "true-borderless": {
-            "name": "Ep cua so True Borderless (Windows 11 DWM)",
-            "description": "Chuyen cua so sang Borderless Windowed de Windows 11 DWM chong xe hinh bang DXGI Flip Model.",
+            "name": "True Borderless Flip Mode",
+            "description": "Toi uu cua so khong vien tren Windows 11 de kich hoat bo chong xe hinh cua DWM.",
             "type": "bool",
             "default": true
+        },
+        "gameplay-only": {
+            "name": "Chi ap dung khi dang trong man choi",
+            "description": "Chi bat Draw Divide khi o trong PlayLayer/Level, giu nguyen Menu va Editor.",
+            "type": "bool",
+            "default": false
         }
     }
 }
