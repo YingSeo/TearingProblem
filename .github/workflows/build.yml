@@ -13,42 +13,36 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Sync mod.json with Geode SDK Loader
+      - name: Sync mod.json with Latest Geode SDK Release
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          try {
-            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/geode-sdk/geode/releases/latest"
-            $tag = $release.tag_name
-            $loaderModUrl = "https://raw.githubusercontent.com/geode-sdk/geode/$tag/loader/mod.json"
-            $loaderMod = Invoke-RestMethod -Uri $loaderModUrl
-
-            $modPath = Join-Path $PWD "mod.json"
-            $json = Get-Content $modPath -Raw | ConvertFrom-Json
-            $json.geode = $loaderMod.version.TrimStart('v')
-            if ($loaderMod.gd -and $loaderMod.gd.win) {
-              $json.gd.win = $loaderMod.gd.win
-            }
-
-            $outString = $json | ConvertTo-Json -Depth 10
-            $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-            [System.IO.File]::WriteAllText($modPath, $outString, $utf8NoBom)
-            Write-Host "Synced mod.json -> Geode: $($json.geode), GD Win: $($json.gd.win)"
-          } catch {
-            Write-Warning "Fallback to existing mod.json: $_"
+          $headers = @{ "User-Agent" = "GeodeModBuilder" }
+          if ($env:GH_TOKEN) {
+            $headers["Authorization"] = "Bearer $env:GH_TOKEN"
           }
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/geode-sdk/geode/releases/latest" -Headers $headers
+          $sdkVer = $release.tag_name.TrimStart('v')
+
+          $modPath = Join-Path $PWD "mod.json"
+          $json = Get-Content $modPath -Raw | ConvertFrom-Json
+          $json.geode = $sdkVer
+
+          $outString = $json | ConvertTo-Json -Depth 10
+          $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+          [System.IO.File]::WriteAllText($modPath, $outString, $utf8NoBom)
+          Write-Host "Successfully synced mod.json to Geode SDK v$sdkVer"
 
       - name: Build Geode Mod
         uses: geode-sdk/build-geode-mod@main
         id: build
         with:
           sdk: latest
-          config: Release
+          build-config: Release
 
       - name: Upload .geode Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NoTearFPS-2.2081
-          path: |
-            ${{ steps.build.outputs.build-output }}
-            build/*.geode
-          if-no-files-found: error
+          name: NoTearFPS-v2.0.0-2.2081
+          path: ${{ steps.build.outputs.build-output }}
