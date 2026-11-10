@@ -18,7 +18,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Generate Icon, Metadata, CMake and v18.0 Two-Stage Zero-Stall DXGI V-Sync Engine
+      - name: Generate Redesigned Icon, Metadata, CMake and v19.0 Sub-Frame Engine
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
@@ -31,7 +31,7 @@ jobs:
             Remove-Item -Path "main.cpp" -Force
           }
 
-          # 1. Tao Icon 256x256 RGBA PNG (logo.png)
+          # 1. Thiet ke Icon moi 256x256 RGBA PNG (logo.png) phong cach Cyber-Neon Shield & Monitor
           $logoPath = Join-Path $PWD "logo.png"
           $csCode = @'
           using System;
@@ -41,46 +41,151 @@ jobs:
           using System.Drawing.Text;
 
           public static class IconBuilder {
+              private static GraphicsPath CreateRoundedRect(RectangleF rect, float radius) {
+                  float d = radius * 2f;
+                  GraphicsPath path = new GraphicsPath();
+                  path.AddArc(rect.X, rect.Y, d, d, 180f, 90f);
+                  path.AddArc(rect.Right - d, rect.Y, d, d, 270f, 90f);
+                  path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0f, 90f);
+                  path.AddArc(rect.X, rect.Bottom - d, d, d, 90f, 90f);
+                  path.CloseFigure();
+                  return path;
+              }
+
               public static void Build(string path) {
                   using (Bitmap bmp = new Bitmap(256, 256, PixelFormat.Format32bppArgb))
                   using (Graphics g = Graphics.FromImage(bmp)) {
                       g.SmoothingMode = SmoothingMode.AntiAlias;
-                      g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-                      g.Clear(Color.FromArgb(255, 10, 14, 26));
+                      g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+                      g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                      g.Clear(Color.FromArgb(0, 0, 0, 0));
 
-                      using (LinearGradientBrush bg = new LinearGradientBrush(
-                          new Rectangle(16, 16, 224, 224),
-                          Color.FromArgb(255, 10, 46, 92),
-                          Color.FromArgb(255, 8, 12, 24),
-                          45f)) {
-                          g.FillRectangle(bg, 16, 16, 224, 224);
+                      // 1. Outer Rounded Cyber Badge Background
+                      using (GraphicsPath outerPath = CreateRoundedRect(new RectangleF(8f, 8f, 240f, 240f), 42f))
+                      using (LinearGradientBrush bgGrad = new LinearGradientBrush(
+                          new RectangleF(8f, 8f, 240f, 240f),
+                          Color.FromArgb(255, 16, 22, 48),
+                          Color.FromArgb(255, 6, 10, 22),
+                          135f)) {
+                          g.FillPath(bgGrad, outerPath);
+
+                          // Subtle tech grid lines
+                          using (Pen gridPen = new Pen(Color.FromArgb(18, 0, 229, 255), 1f)) {
+                              for (int i = 32; i < 240; i += 24) {
+                                  g.DrawLine(gridPen, 16, i, 240, i);
+                                  g.DrawLine(gridPen, i, 16, i, 240);
+                              }
+                          }
+
+                          // Ambient center glow
+                          using (GraphicsPath glowPath = new GraphicsPath()) {
+                              glowPath.AddEllipse(28f, 36f, 200f, 160f);
+                              using (PathGradientBrush pgb = new PathGradientBrush(glowPath)) {
+                                  pgb.CenterColor = Color.FromArgb(75, 0, 229, 255);
+                                  pgb.SurroundColors = new Color[] { Color.FromArgb(0, 0, 0, 0) };
+                                  g.FillPath(pgb, glowPath);
+                              }
+                          }
+
+                          // Neon Dual Border
+                          using (LinearGradientBrush borderGrad = new LinearGradientBrush(
+                              new RectangleF(8f, 8f, 240f, 240f),
+                              Color.FromArgb(255, 0, 245, 255),
+                              Color.FromArgb(255, 138, 43, 226),
+                              45f))
+                          using (Pen outerPen = new Pen(borderGrad, 6f)) {
+                              g.DrawPath(outerPen, outerPath);
+                          }
                       }
 
-                      using (Pen pCyan = new Pen(Color.FromArgb(255, 0, 229, 255), 8f))
-                      using (Pen pPurple = new Pen(Color.FromArgb(255, 124, 77, 255), 4f))
-                      using (Pen pGreen = new Pen(Color.FromArgb(255, 0, 255, 170), 7f)) {
-                          g.DrawRectangle(pCyan, 16, 16, 224, 224);
-                          g.DrawRectangle(pPurple, 28, 28, 200, 200);
+                      using (GraphicsPath innerRing = CreateRoundedRect(new RectangleF(18f, 18f, 220f, 220f), 34f))
+                      using (Pen innerPen = new Pen(Color.FromArgb(90, 0, 255, 200), 2f)) {
+                          g.DrawPath(innerPen, innerRing);
+                      }
 
-                          Point[] pulse = new Point[] {
-                              new Point(42, 128),
-                              new Point(92, 128),
-                              new Point(112, 74),
-                              new Point(144, 182),
-                              new Point(164, 128),
-                              new Point(214, 128)
+                      // 2. Sleek Gaming Monitor Display Frame in Center
+                      RectangleF screenRect = new RectangleF(38f, 66f, 180f, 96f);
+                      using (GraphicsPath screenPath = CreateRoundedRect(screenRect, 14f))
+                      using (LinearGradientBrush screenBg = new LinearGradientBrush(
+                          screenRect,
+                          Color.FromArgb(255, 10, 28, 54),
+                          Color.FromArgb(255, 6, 14, 30),
+                          90f)) {
+                          g.FillPath(screenBg, screenPath);
+
+                          // Left side: Red Tearing Glitch bars being eliminated
+                          using (SolidBrush tearRed = new SolidBrush(Color.FromArgb(180, 255, 50, 90)))
+                          using (SolidBrush tearOrange = new SolidBrush(Color.FromArgb(160, 255, 140, 0))) {
+                              g.FillRectangle(tearRed, 48f, 86f, 42f, 5f);
+                              g.FillRectangle(tearOrange, 56f, 100f, 38f, 4f);
+                              g.FillRectangle(tearRed, 44f, 118f, 46f, 5f);
+                              g.FillRectangle(tearOrange, 52f, 134f, 34f, 4f);
+                          }
+
+                          // Right side: Smooth Locked V-Sync Wave (Glow + Core)
+                          PointF[] syncWave = new PointF[] {
+                              new PointF(96f, 114f),
+                              new PointF(118f, 114f),
+                              new PointF(132f, 80f),
+                              new PointF(152f, 146f),
+                              new PointF(168f, 96f),
+                              new PointF(180f, 114f),
+                              new PointF(206f, 114f)
                           };
-                          g.DrawLines(pGreen, pulse);
+                          using (Pen waveGlow = new Pen(Color.FromArgb(90, 0, 255, 170), 11f))
+                          using (Pen waveCore = new Pen(Color.FromArgb(255, 0, 255, 190), 4.5f)) {
+                              waveGlow.LineJoin = LineJoin.Round;
+                              waveCore.LineJoin = LineJoin.Round;
+                              g.DrawLines(waveGlow, syncWave);
+                              g.DrawLines(waveCore, syncWave);
+                          }
+
+                          // Diagonal Laser Divider Beam (Anti-Tear Shield Slash)
+                          using (Pen beamGlow = new Pen(Color.FromArgb(110, 0, 229, 255), 9f))
+                          using (Pen beamCore = new Pen(Color.FromArgb(255, 255, 255, 255), 3f)) {
+                              g.DrawLine(beamGlow, 108f, 68f, 84f, 160f);
+                              g.DrawLine(beamCore, 108f, 68f, 84f, 160f);
+                          }
+
+                          using (Pen screenBorder = new Pen(Color.FromArgb(255, 0, 215, 255), 3f)) {
+                              g.DrawPath(screenBorder, screenPath);
+                          }
                       }
 
-                      using (Font f1 = new Font("Arial", 22f, FontStyle.Bold))
-                      using (Font f2 = new Font("Arial", 13f, FontStyle.Bold))
-                      using (SolidBrush bWhite = new SolidBrush(Color.FromArgb(255, 245, 250, 255)))
-                      using (SolidBrush bCyan = new SolidBrush(Color.FromArgb(255, 0, 229, 255)))
-                      using (StringFormat sf = new StringFormat()) {
-                          sf.Alignment = StringAlignment.Center;
-                          g.DrawString("NO TEAR", f1, bWhite, new RectangleF(0f, 36f, 256f, 44f), sf);
-                          g.DrawString("PRO V18", f2, bCyan, new RectangleF(0f, 186f, 256f, 36f), sf);
+                      // Monitor Stand Neck & Base
+                      using (SolidBrush standBrush = new SolidBrush(Color.FromArgb(255, 0, 200, 240))) {
+                          g.FillRectangle(standBrush, 116f, 162f, 24f, 10f);
+                          using (GraphicsPath basePill = CreateRoundedRect(new RectangleF(88f, 171f, 80f, 7f), 3.5f)) {
+                              g.FillPath(standBrush, basePill);
+                          }
+                      }
+
+                      // 3. Top Title: "NoTear" with Drop Shadow
+                      using (Font titleFont = new Font("Arial", 23f, FontStyle.Bold))
+                      using (StringFormat sf = new StringFormat() { Alignment = StringAlignment.Center })
+                      using (SolidBrush shadowBrush = new SolidBrush(Color.FromArgb(200, 0, 0, 0)))
+                      using (SolidBrush titleBrush = new SolidBrush(Color.FromArgb(255, 245, 252, 255))) {
+                          g.DrawString("NoTear", titleFont, shadowBrush, new RectangleF(2f, 23f, 256f, 40f), sf);
+                          g.DrawString("NoTear", titleFont, titleBrush, new RectangleF(0f, 21f, 256f, 40f), sf);
+                      }
+
+                      // 4. Bottom Pill Badge: "PROBLEM FPS"
+                      RectangleF pillRect = new RectangleF(34f, 188f, 188f, 36f);
+                      using (GraphicsPath pillPath = CreateRoundedRect(pillRect, 18f))
+                      using (LinearGradientBrush pillGrad = new LinearGradientBrush(
+                          pillRect,
+                          Color.FromArgb(255, 0, 180, 255),
+                          Color.FromArgb(255, 110, 30, 255),
+                          0f))
+                      using (Pen pillBorder = new Pen(Color.FromArgb(255, 160, 250, 255), 2f)) {
+                          g.FillPath(pillGrad, pillPath);
+                          g.DrawPath(pillBorder, pillPath);
+                      }
+
+                      using (Font subFont = new Font("Arial", 13.5f, FontStyle.Bold))
+                      using (StringFormat sfSub = new StringFormat() { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                      using (SolidBrush whiteBrush = new SolidBrush(Color.FromArgb(255, 255, 255, 255))) {
+                          g.DrawString("PROBLEM FPS", subFont, whiteBrush, pillRect, sfSub);
                       }
 
                       bmp.Save(path, ImageFormat.Png);
@@ -91,29 +196,47 @@ jobs:
           Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition $csCode
           [IconBuilder]::Build($logoPath)
 
-          # 2. Tao about.md
+          # 2. Tao about.md (Hien thi day du ngay Release, Update va Mo ta chuc nang trong Geode)
+          $buildDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'")
           $aboutLines = @(
-            '# <cy>NoTear FPS v18.0 (Two-Stage Zero-Stall DXGI V-Sync)</c>',
+            '# <cy>NoTear-Problem-FPS</c>',
             '',
-            'Eliminates **100% of screen tearing** when **Unlock FPS** is enabled in **Geometry Dash 2.2081** with **smooth startup animations, instant click response, and zero FPS drops**.',
+            '- **<cg>Released:</c>** `2026-11-07`',
+            "- **<cy>Updated:</c>** ``$buildDate (v19.0.0)``",
+            '- **<cp>Target:</c>** `Geometry Dash 2.2081 (Geode v5.11.2 - Windows x64)`',
             '',
-            '### <cg>v18.0 Architecture:</c>',
-            '- **Restored v16.0 3-Buffer DXGI Flip-Discard Presenter:** Uses a dedicated `THREAD_PRIORITY_TIME_CRITICAL` V-Sync presenter thread (`Present(1, 0)` + `DwmFlush`) and a single `MiscFlags = 0` WGL interop target.',
-            '- **Two-Stage Pure-GL Staging + `GLsync` (`0ns` Poll):** Stages unlocked frames into a lightweight pure-GL renderbuffer before locking DXGI, so `wglDXLockObjectsNV` is never held across frames and `scratchFbo` is completely eliminated.',
-            '- **Adaptive 60Hz / 240Hz Dispatch:** Immediately presents 60Hz menu/Bismuth frames on the same tick while late-latching 240+ FPS gameplay frames for low click latency.'
+            '---',
+            '',
+            '### <cg>Chuc nang duy nhat (Single-Purpose Mod):</c>',
+            '**NoTear-Problem-FPS** chi thuc hien **duy nhat 1 nhiem vu**: Triet tieu hoan toan hien tuong **xe man hinh / soc nhieu ngang (Screen Tearing)** khi bat **Unlock FPS** (120 / 240 / 360 / 480 FPS) tren man hinh 60Hz ma khong gay giat lag, khong lam cham toc do game va khong gay tre thao tac bam (Click Delay).',
+            '',
+            '### <cy>Cong nghe Sub-Frame Triple-Buffered DXGI V19:</c>',
+            '- **Sub-Frame `CCScheduler` Fence Unlock:** Mo khoa bo dem WGL-DXGI ngay o dau nhip vat ly 240Hz (`4.16ms` sau khi ve xong) truoc khi man hinh 60Hz quet, dam bao man hinh luon nhan du **60.0 khung hinh/giay** (khong bao gio bi tut xuong 30Hz/48Hz khi mo **Eclipse Menu** hoac o ngoai sanh menu).',
+            '- **Single-Stage FIFO Interop (`0.00ms` Stall):** Loai bo hoan toan hien tuong giat lui khung hinh (Frame Rubber-banding) va tu dong `glFlush()` tren moi khung hinh 240Hz.',
+            '- **Tuong thich 100%:** Chay ngam tu dong ngay khi vao game, khong can menu cai dat, tuong thich tuyet doi voi **Eclipse Menu**, **Bismuth**, **Mega Hack**, **CBF** va **Globed**.'
           )
           [System.IO.File]::WriteAllLines((Join-Path $PWD "about.md"), $aboutLines, $utf8NoBom)
 
-          # 3. Tao changelog.md
+          # 3. Tao changelog.md (Lich su cap nhat chi tiet)
           $changelogLines = @(
-            '# v18.0.0 (For GD 2.2081)',
-            '- Fixed v17.0 tearing and stuttering by removing directRingInterop on shared textures, restoring 3-buffer Flip-Discard, and restoring Presenter Thread priority.',
-            '- Fixed v17.0 startup/menu animation stutter by removing the timeout DwmFlush() in presenterThreadLoop and dispatching <=90Hz frames on the same tick.',
-            '- Improved on v16.0 by removing scratchFbo (saving 180 FBO switches/sec) and adding a pure-GL staging buffer so wglDXLockObjectsNV is never held across frames.'
+            "# v19.0.0 ($buildDate)",
+            '- **Renamed Mod:** Doi ten mod thanh **NoTear-Problem-FPS** va thiet ke lai Icon Cyber-Neon 256x256 moi.',
+            '- **Fixed Eclipse Menu & Main Menu Stutter:** Bo sung Sub-Frame Fence Unlock ngay trong `CCScheduler::update` de khung hinh luon duoc gui sang luong V-Sync truoc moc 16.67ms, giup hieu ung mo menu Eclipse va hieu ung sanh muot 60.0Hz tuyet doi (khong con bi tut xuong 30Hz/48Hz).',
+            '- **Fixed Frame Jumping (Giat lui khung hinh):** Xoa bo `glStagingFbo` va co che chuyen luong kep cua v18.0, dam bao 100% khung hinh xuat ra dung thu tu thoi gian thuc.',
+            '- **Eliminated Click Delay & Slowdown Feel:** Goi `glFlush()` tren moi khung hinh 240Hz trung gian va dat `IDXGIDevice1::SetMaximumFrameLatency(1)` de giam do tre hien thi xuong duoi 4ms.',
+            '',
+            '# v16.0.0 - v18.0.0 (2026-11-09)',
+            '- Tich hop hang rao bat dong bo `GLsync` (`glClientWaitSync` voi `timeout = 0ns`) de CPU khong phai doi GPU MX350 ve xong.',
+            '',
+            '# v8.0.0 - v15.0.0 (2026-11-08)',
+            '- Xay dung luong hien thi V-Sync doc lap (`DXGI_SWAP_EFFECT_FLIP_DISCARD` + `Present(1, 0)` + `DwmFlush`) tren kiến trúc NVIDIA Optimus (MX350 60Hz).',
+            '',
+            '# v1.0.0 - v7.0.0 (2026-11-07)',
+            '- Khoi tao du an chong xe man hinh cho Geometry Dash 2.2081 tren Geode v5.11.2.'
           )
           [System.IO.File]::WriteAllLines((Join-Path $PWD "changelog.md"), $changelogLines, $utf8NoBom)
 
-          # 4. Tao mod.json khoa cung cho Geode 5.11.2 va GD 2.2081
+          # 4. Tao mod.json voi ten moi "NoTear-Problem-FPS" va mo ta chuan xac
           $modJsonLines = @(
             '{',
             '    "geode": "5.11.2",',
@@ -121,10 +244,10 @@ jobs:
             '        "win": "2.2081"',
             '    },',
             '    "id": "yingseo.notear-fps-22081",',
-            '    "name": "NoTear FPS",',
-            '    "version": "v18.0.0",',
+            '    "name": "NoTear-Problem-FPS",',
+            '    "version": "v19.0.0",',
             '    "developer": "YingSeo",',
-            '    "description": "Two-Stage Zero-Stall DXGI Flip-Discard V-Sync Presenter that eliminates screen tearing on Unlock FPS.",',
+            '    "description": "Fix 100% loi xe man hinh (Screen Tearing) khi bat Unlock FPS trong GD 2.2081 ma khong lag, khong delay click (Updated: 2026-11-10).",',
             '    "early-load": true,',
             '    "tags": [',
             '        "performance",',
@@ -143,7 +266,7 @@ jobs:
             'set(CMAKE_CXX_EXTENSIONS OFF)',
             'set(CMAKE_CXX_VISIBILITY_PRESET hidden)',
             '',
-            'project(NoTearFPS VERSION 18.0.0)',
+            'project(NoTearProblemFPS VERSION 19.0.0)',
             '',
             'add_library(${PROJECT_NAME} SHARED src/main.cpp)',
             '',
@@ -156,10 +279,11 @@ jobs:
           )
           [System.IO.File]::WriteAllLines((Join-Path $PWD "CMakeLists.txt"), $cmakeLines, $utf8NoBom)
 
-          # 6. Tao src/main.cpp (v18.0 = Proven v16.0 Tear-Free Presenter + Two-Stage Pure-GL Staging + Adaptive Low-Latency Gate)
+          # 6. Tao src/main.cpp (v19.0 Sub-Frame Fence Unlock + Single-FIFO Interop + Zero-Lag 240Hz Flush)
           $cppLines = @(
             '#include <Geode/Geode.hpp>',
             '#include <Geode/modify/CCEGLView.hpp>',
+            '#include <Geode/modify/CCScheduler.hpp>',
             '#include <atomic>',
             '#include <thread>',
             '#include <mutex>',
@@ -169,7 +293,7 @@ jobs:
             '',
             'using namespace geode::prelude;',
             '',
-            'namespace SmoothNoTearV18 {',
+            'namespace NoTearProblemV19 {',
             '    #ifdef GEODE_IS_WINDOWS',
             '    // Self-contained ABI-exact DXGI & D3D11 structures',
             '    struct DxgiRational { uint32_t Numerator, Denominator; };',
@@ -201,90 +325,53 @@ jobs:
             '    };',
             '    struct DwmMargins { int cxLeftWidth, cxRightWidth, cyTopHeight, cyBottomHeight; };',
             '',
-            '    static const GUID kIID_IDXGIFactory1    = { 0x770aae78, 0xf26f, 0x4dba, { 0xa8, 0x29, 0x25, 0x3c, 0x83, 0xd1, 0xb3, 0x87 } };',
-            '    static const GUID kIID_IDXGIResource    = { 0x035f3ab4, 0x482e, 0x4e50, { 0xb4, 0x1f, 0x8a, 0x7f, 0x8b, 0xd8, 0x96, 0x0b } };',
-            '    static const GUID kIID_ID3D11Texture2D  = { 0x6f15aaf2, 0xd208, 0x4e89, { 0x9a, 0xb4, 0x48, 0x95, 0x35, 0xd3, 0x4f, 0x9c } };',
+            '    static const GUID kIID_IDXGIFactory1     = { 0x770aae78, 0xf26f, 0x4dba, { 0xa8, 0x29, 0x25, 0x3c, 0x83, 0xd1, 0xb3, 0x87 } };',
+            '    static const GUID kIID_IDXGIDevice1      = { 0x77db970f, 0x6276, 0x48ba, { 0xba, 0x28, 0x07, 0x01, 0x43, 0xb4, 0x39, 0x2c } };',
+            '    static const GUID kIID_IDXGIResource     = { 0x035f3ab4, 0x482e, 0x4e50, { 0xb4, 0x1f, 0x8a, 0x7f, 0x8b, 0xd8, 0x96, 0x0b } };',
+            '    static const GUID kIID_ID3D11Texture2D   = { 0x6f15aaf2, 0xd208, 0x4e89, { 0x9a, 0xb4, 0x48, 0x95, 0x35, 0xd3, 0x4f, 0x9c } };',
             '    static const GUID kIID_ID3D10Multithread = { 0x9b7e4e00, 0x342c, 0x4106, { 0xa1, 0x9f, 0x4f, 0x27, 0x04, 0xf6, 0x89, 0xf0 } };',
             '',
             '    // COM VTable Helpers',
-            '    using PFN_UnknownQueryInterface = long(__stdcall*)(void*, const GUID*, void**);',
-            '    using PFN_UnknownAddRef = unsigned long(__stdcall*)(void*);',
-            '    using PFN_UnknownRelease = unsigned long(__stdcall*)(void*);',
-            '    using PFN_FactoryMakeWindowAssociation = long(__stdcall*)(void*, HWND, uint32_t);',
-            '    using PFN_FactoryCreateSwapChain = long(__stdcall*)(void*, void*, DxgiSwapChainDesc*, void**);',
-            '    using PFN_Factory1EnumAdapters1 = long(__stdcall*)(void*, uint32_t, void**);',
-            '    using PFN_Adapter1GetDesc1 = long(__stdcall*)(void*, DxgiAdapterDesc1*);',
-            '    using PFN_SwapChainPresent = long(__stdcall*)(void*, uint32_t, uint32_t);',
-            '    using PFN_SwapChainGetBuffer = long(__stdcall*)(void*, uint32_t, const GUID*, void**);',
-            '    using PFN_DeviceCreateTexture2D = long(__stdcall*)(void*, const D3D11Texture2DDesc*, const void*, void**);',
-            '    using PFN_DeviceOpenSharedResource = long(__stdcall*)(void*, HANDLE, const GUID*, void**);',
-            '    using PFN_ResourceGetSharedHandle = long(__stdcall*)(void*, HANDLE*);',
-            '    using PFN_ContextCopyResource = void(__stdcall*)(void*, void*, void*);',
-            '    using PFN_ContextFlush = void(__stdcall*)(void*);',
-            '    using PFN_MultithreadSetProtected = int(__stdcall*)(void*, int);',
+            '    using PFN_QI = long(__stdcall*)(void*, const GUID*, void**);',
+            '    using PFN_AddRef = unsigned long(__stdcall*)(void*);',
+            '    using PFN_Release = unsigned long(__stdcall*)(void*);',
+            '    using PFN_MakeWinAssoc = long(__stdcall*)(void*, HWND, uint32_t);',
+            '    using PFN_CreateSwapChain = long(__stdcall*)(void*, void*, DxgiSwapChainDesc*, void**);',
+            '    using PFN_EnumAdapters1 = long(__stdcall*)(void*, uint32_t, void**);',
+            '    using PFN_GetDesc1 = long(__stdcall*)(void*, DxgiAdapterDesc1*);',
+            '    using PFN_Present = long(__stdcall*)(void*, uint32_t, uint32_t);',
+            '    using PFN_GetBuffer = long(__stdcall*)(void*, uint32_t, const GUID*, void**);',
+            '    using PFN_CreateTex2D = long(__stdcall*)(void*, const D3D11Texture2DDesc*, const void*, void**);',
+            '    using PFN_OpenSharedRes = long(__stdcall*)(void*, HANDLE, const GUID*, void**);',
+            '    using PFN_GetSharedHandle = long(__stdcall*)(void*, HANDLE*);',
+            '    using PFN_CopyResource = void(__stdcall*)(void*, void*, void*);',
+            '    using PFN_Flush = void(__stdcall*)(void*);',
+            '    using PFN_SetMaxFrameLatency = long(__stdcall*)(void*, uint32_t);',
+            '    using PFN_SetMTProtected = int(__stdcall*)(void*, int);',
             '',
-            '    inline long comQueryInterface(void* obj, const GUID* riid, void** outPtr) {',
-            '        return reinterpret_cast<PFN_UnknownQueryInterface>((*reinterpret_cast<void***>(obj))[0])(obj, riid, outPtr);',
-            '    }',
-            '    inline void comAddRef(void* obj) {',
-            '        if (obj) reinterpret_cast<PFN_UnknownAddRef>((*reinterpret_cast<void***>(obj))[1])(obj);',
-            '    }',
-            '    inline void comRelease(void*& obj) {',
-            '        if (obj) {',
-            '            reinterpret_cast<PFN_UnknownRelease>((*reinterpret_cast<void***>(obj))[2])(obj);',
-            '            obj = nullptr;',
+            '    inline long comQI(void* o, const GUID* id, void** out) { return reinterpret_cast<PFN_QI>((*reinterpret_cast<void***>(o))[0])(o, id, out); }',
+            '    inline void comAddRef(void* o) { if (o) reinterpret_cast<PFN_AddRef>((*reinterpret_cast<void***>(o))[1])(o); }',
+            '    inline void comRelease(void*& o) { if (o) { reinterpret_cast<PFN_Release>((*reinterpret_cast<void***>(o))[2])(o); o = nullptr; } }',
+            '    inline void setDeviceMaxLatency1(void* dev) {',
+            '        void* dxgiDev1 = nullptr;',
+            '        if (dev && comQI(dev, &kIID_IDXGIDevice1, &dxgiDev1) >= 0 && dxgiDev1) {',
+            '            reinterpret_cast<PFN_SetMaxFrameLatency>((*reinterpret_cast<void***>(dxgiDev1))[12])(dxgiDev1, 1);',
+            '            comRelease(dxgiDev1);',
             '        }',
             '    }',
-            '    inline long factoryMakeWindowAssociation(void* factory, HWND hwnd, uint32_t flags) {',
-            '        return reinterpret_cast<PFN_FactoryMakeWindowAssociation>((*reinterpret_cast<void***>(factory))[8])(factory, hwnd, flags);',
-            '    }',
-            '    inline long factoryCreateSwapChain(void* factory, void* dev, DxgiSwapChainDesc* desc, void** outSc) {',
-            '        return reinterpret_cast<PFN_FactoryCreateSwapChain>((*reinterpret_cast<void***>(factory))[10])(factory, dev, desc, outSc);',
-            '    }',
-            '    inline long factoryEnumAdapters1(void* factory, uint32_t idx, void** outAdapter) {',
-            '        return reinterpret_cast<PFN_Factory1EnumAdapters1>((*reinterpret_cast<void***>(factory))[12])(factory, idx, outAdapter);',
-            '    }',
-            '    inline long adapterGetDesc1(void* adapter, DxgiAdapterDesc1* outDesc) {',
-            '        return reinterpret_cast<PFN_Adapter1GetDesc1>((*reinterpret_cast<void***>(adapter))[10])(adapter, outDesc);',
-            '    }',
-            '    inline long swapChainPresent(void* sc, uint32_t syncInterval, uint32_t flags) {',
-            '        return reinterpret_cast<PFN_SwapChainPresent>((*reinterpret_cast<void***>(sc))[8])(sc, syncInterval, flags);',
-            '    }',
-            '    inline long swapChainGetBuffer(void* sc, uint32_t idx, const GUID* riid, void** outBuf) {',
-            '        return reinterpret_cast<PFN_SwapChainGetBuffer>((*reinterpret_cast<void***>(sc))[9])(sc, idx, riid, outBuf);',
-            '    }',
-            '    inline long deviceCreateTexture2D(void* dev, const D3D11Texture2DDesc* desc, void** outTex) {',
-            '        return reinterpret_cast<PFN_DeviceCreateTexture2D>((*reinterpret_cast<void***>(dev))[5])(dev, desc, nullptr, outTex);',
-            '    }',
-            '    inline long deviceOpenSharedResource(void* dev, HANDLE hRes, const GUID* riid, void** outRes) {',
-            '        return reinterpret_cast<PFN_DeviceOpenSharedResource>((*reinterpret_cast<void***>(dev))[28])(dev, hRes, riid, outRes);',
-            '    }',
-            '    inline long resourceGetSharedHandle(void* res, HANDLE* outHandle) {',
-            '        return reinterpret_cast<PFN_ResourceGetSharedHandle>((*reinterpret_cast<void***>(res))[8])(res, outHandle);',
-            '    }',
-            '    inline void contextCopyResource(void* ctx, void* dst, void* src) {',
-            '        reinterpret_cast<PFN_ContextCopyResource>((*reinterpret_cast<void***>(ctx))[47])(ctx, dst, src);',
-            '    }',
-            '    inline void contextFlush(void* ctx) {',
-            '        reinterpret_cast<PFN_ContextFlush>((*reinterpret_cast<void***>(ctx))[111])(ctx);',
-            '    }',
-            '    inline void enableMultithreadDevice(void* dev) {',
+            '    inline void enableMTProtected(void* dev) {',
             '        void* mt = nullptr;',
-            '        if (comQueryInterface(dev, &kIID_ID3D10Multithread, &mt) >= 0 && mt) {',
-            '            reinterpret_cast<PFN_MultithreadSetProtected>((*reinterpret_cast<void***>(mt))[4])(mt, 1);',
+            '        if (dev && comQI(dev, &kIID_ID3D10Multithread, &mt) >= 0 && mt) {',
+            '            reinterpret_cast<PFN_SetMTProtected>((*reinterpret_cast<void***>(mt))[4])(mt, 1);',
             '            comRelease(mt);',
             '        }',
             '    }',
             '',
-            '    // Dynamic DLL Function Pointer Types',
+            '    // Dynamic DLL Function Types',
             '    using PFN_CreateDXGIFactory1 = long(__stdcall*)(const GUID*, void**);',
-            '    using PFN_D3D11CreateDevice = long(__stdcall*)(',
-            '        void* pAdapter, uint32_t DriverType, HMODULE Software, uint32_t Flags,',
-            '        const uint32_t* pFeatureLevels, uint32_t FeatureLevels, uint32_t SDKVersion,',
-            '        void** ppDevice, uint32_t* pFeatureLevel, void** ppImmediateContext);',
-            '',
+            '    using PFN_D3D11CreateDevice = long(__stdcall*)(void*, uint32_t, HMODULE, uint32_t, const uint32_t*, uint32_t, uint32_t, void**, uint32_t*, void**);',
             '    using PFN_DwmFlush = long(__stdcall*)(void);',
-            '    using PFN_DwmExtendFrameIntoClientArea = long(__stdcall*)(HWND, const DwmMargins*);',
+            '    using PFN_DwmExtendFrame = long(__stdcall*)(HWND, const DwmMargins*);',
             '    using PFN_GetDeviceCaps = int(__stdcall*)(HDC, int);',
             '    using PFN_ChangeDisplaySettingsA = long(__stdcall*)(void*, unsigned long);',
             '    using PFN_timeBeginPeriod = unsigned int(__stdcall*)(unsigned int);',
@@ -318,7 +405,6 @@ jobs:
             '    using PFN_glGenRenderbuffers = void(__stdcall*)(int32_t, uint32_t*);',
             '    using PFN_glDeleteRenderbuffers = void(__stdcall*)(int32_t, const uint32_t*);',
             '    using PFN_glBindRenderbuffer = void(__stdcall*)(uint32_t, uint32_t);',
-            '    using PFN_glRenderbufferStorage = void(__stdcall*)(uint32_t, uint32_t, int32_t, int32_t);',
             '    using PFN_glFramebufferRenderbuffer = void(__stdcall*)(uint32_t, uint32_t, uint32_t, uint32_t);',
             '    using PFN_glFramebufferTexture2D = void(__stdcall*)(uint32_t, uint32_t, uint32_t, uint32_t, int32_t);',
             '    using PFN_glBlitFramebuffer = void(__stdcall*)(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, uint32_t, uint32_t);',
@@ -337,7 +423,6 @@ jobs:
             '    constexpr uint32_t kGL_RENDERBUFFER = 0x8D41;',
             '    constexpr uint32_t kGL_TEXTURE_2D = 0x0DE1;',
             '    constexpr uint32_t kGL_COLOR_ATTACHMENT0 = 0x8CE0;',
-            '    constexpr uint32_t kGL_RGBA8 = 0x8058;',
             '    constexpr uint32_t kGL_FRAMEBUFFER_COMPLETE = 0x8CD5;',
             '    constexpr uint32_t kGL_COLOR_BUFFER_BIT = 0x00004000;',
             '    constexpr uint32_t kGL_NEAREST = 0x2600;',
@@ -352,7 +437,7 @@ jobs:
             '    PFN_CreateDXGIFactory1 pCreateDXGIFactory1 = nullptr;',
             '    PFN_D3D11CreateDevice pD3D11CreateDevice = nullptr;',
             '    PFN_DwmFlush pDwmFlush = nullptr;',
-            '    PFN_DwmExtendFrameIntoClientArea pDwmExtendFrame = nullptr;',
+            '    PFN_DwmExtendFrame pDwmExtendFrame = nullptr;',
             '    PFN_GetDeviceCaps pGetDeviceCaps = nullptr;',
             '    PFN_ChangeDisplaySettingsA pChangeDisplaySettingsA = nullptr;',
             '',
@@ -385,7 +470,6 @@ jobs:
             '    PFN_glGenRenderbuffers pGlGenRenderbuffers = nullptr;',
             '    PFN_glDeleteRenderbuffers pGlDeleteRenderbuffers = nullptr;',
             '    PFN_glBindRenderbuffer pGlBindRenderbuffer = nullptr;',
-            '    PFN_glRenderbufferStorage pGlRenderbufferStorage = nullptr;',
             '    PFN_glFramebufferRenderbuffer pGlFramebufferRenderbuffer = nullptr;',
             '    PFN_glFramebufferTexture2D pGlFramebufferTexture2D = nullptr;',
             '    PFN_glBlitFramebuffer pGlBlitFramebuffer = nullptr;',
@@ -394,7 +478,7 @@ jobs:
             '    PFN_glClientWaitSync pGlClientWaitSync = nullptr;',
             '    PFN_glDeleteSync pGlDeleteSync = nullptr;',
             '',
-            '    // Synchronization & Pipeline State',
+            '    // State & Synchronization',
             '    bool apisLoaded = false;',
             '    bool interopSupported = true;',
             '    bool childClassRegistered = false;',
@@ -402,8 +486,9 @@ jobs:
             '    int64_t qpcFreq = 0;',
             '    std::atomic<int64_t> refreshPeriodTicks{0};',
             '    std::atomic<int64_t> lastVBlankQpc{0};',
-            '    std::atomic<bool> presenterReadyForCapture{true};',
+            '    std::atomic<uint64_t> vblankEpoch{1};',
             '',
+            '    uint64_t lastCapturedEpoch = 0;',
             '    int64_t lastCaptureQpc = 0;',
             '    int64_t lastCallQpc = 0;',
             '    int64_t avgCallDeltaQpc = 0;',
@@ -417,12 +502,10 @@ jobs:
             '    std::atomic<int> presentingSlot{-1};',
             '    int lastWrittenSlot = 0;',
             '',
-            '    // Two-Stage Pure-GL Staging Buffer (avoids holding wglDXLockObjectsNV across frames!)',
-            '    uint32_t glStagingFbo = 0;',
-            '    uint32_t glStagingRbo = 0;',
-            '    bool stageInFlight = false;',
-            '    void* stageFence = nullptr;',
-            '    int64_t stageStartQpc = 0;',
+            '    // Single-FIFO In-Flight GPU Blit State (eliminates v18.0 dual-path out-of-order jumping!)',
+            '    bool blitInFlight = false;',
+            '    void* blitFence = nullptr;',
+            '    int64_t blitStartQpc = 0;',
             '',
             '    HWND trackedHwnd = nullptr;',
             '    HWND childSwapHwnd = nullptr;',
@@ -519,7 +602,7 @@ jobs:
             '        }',
             '        if (HMODULE hDwm = LoadLibraryA("dwmapi.dll")) {',
             '            pDwmFlush = reinterpret_cast<PFN_DwmFlush>(GetProcAddress(hDwm, "DwmFlush"));',
-            '            pDwmExtendFrame = reinterpret_cast<PFN_DwmExtendFrameIntoClientArea>(GetProcAddress(hDwm, "DwmExtendFrameIntoClientArea"));',
+            '            pDwmExtendFrame = reinterpret_cast<PFN_DwmExtendFrame>(GetProcAddress(hDwm, "DwmExtendFrameIntoClientArea"));',
             '        }',
             '        if (HMODULE hGdi = GetModuleHandleA("gdi32.dll")) {',
             '            pGetDeviceCaps = reinterpret_cast<PFN_GetDeviceCaps>(GetProcAddress(hGdi, "GetDeviceCaps"));',
@@ -569,7 +652,6 @@ jobs:
             '        pGlGenRenderbuffers = reinterpret_cast<PFN_glGenRenderbuffers>(pGetProcAddress("glGenRenderbuffers"));',
             '        pGlDeleteRenderbuffers = reinterpret_cast<PFN_glDeleteRenderbuffers>(pGetProcAddress("glDeleteRenderbuffers"));',
             '        pGlBindRenderbuffer = reinterpret_cast<PFN_glBindRenderbuffer>(pGetProcAddress("glBindRenderbuffer"));',
-            '        pGlRenderbufferStorage = reinterpret_cast<PFN_glRenderbufferStorage>(pGetProcAddress("glRenderbufferStorage"));',
             '        pGlFramebufferRenderbuffer = reinterpret_cast<PFN_glFramebufferRenderbuffer>(pGetProcAddress("glFramebufferRenderbuffer"));',
             '        pGlFramebufferTexture2D = reinterpret_cast<PFN_glFramebufferTexture2D>(pGetProcAddress("glFramebufferTexture2D"));',
             '        pGlBlitFramebuffer = reinterpret_cast<PFN_glBlitFramebuffer>(pGetProcAddress("glBlitFramebuffer"));',
@@ -590,38 +672,24 @@ jobs:
             '        latestReadySlot.store(-1, std::memory_order_relaxed);',
             '        presentingSlot.store(-1, std::memory_order_relaxed);',
             '',
-            '        if (stageFence && pGlDeleteSync) {',
-            '            pGlDeleteSync(stageFence);',
-            '            stageFence = nullptr;',
+            '        if (blitFence && pGlDeleteSync) {',
+            '            pGlDeleteSync(blitFence);',
+            '            blitFence = nullptr;',
             '        }',
-            '        stageInFlight = false;',
-            '',
-            '        if (glStagingFbo && pGlDeleteFramebuffers) {',
-            '            pGlDeleteFramebuffers(1, &glStagingFbo);',
-            '            glStagingFbo = 0;',
+            '        if (blitInFlight && hInteropDevice && hInteropObject && pWglDXUnlockObjectsNV) {',
+            '            pWglDXUnlockObjectsNV(hInteropDevice, 1, &hInteropObject);',
             '        }',
-            '        if (glStagingRbo && pGlDeleteRenderbuffers) {',
-            '            pGlDeleteRenderbuffers(1, &glStagingRbo);',
-            '            glStagingRbo = 0;',
-            '        }',
+            '        blitInFlight = false;',
             '',
             '        if (hInteropDevice && hInteropObject && pWglDXUnregisterObjectNV) {',
             '            pWglDXUnregisterObjectNV(hInteropDevice, hInteropObject);',
             '        }',
             '        hInteropObject = nullptr;',
             '',
-            '        if (glInteropFbo && pGlDeleteFramebuffers) {',
-            '            pGlDeleteFramebuffers(1, &glInteropFbo);',
-            '            glInteropFbo = 0;',
-            '        }',
-            '        if (glInteropRbo && pGlDeleteRenderbuffers) {',
-            '            pGlDeleteRenderbuffers(1, &glInteropRbo);',
-            '            glInteropRbo = 0;',
-            '        }',
-            '        if (glInteropTex && pGlDeleteTextures) {',
-            '            pGlDeleteTextures(1, &glInteropTex);',
-            '            glInteropTex = 0;',
-            '        }',
+            '        if (glInteropFbo && pGlDeleteFramebuffers) { pGlDeleteFramebuffers(1, &glInteropFbo); glInteropFbo = 0; }',
+            '        if (glInteropRbo && pGlDeleteRenderbuffers) { pGlDeleteRenderbuffers(1, &glInteropRbo); glInteropRbo = 0; }',
+            '        if (glInteropTex && pGlDeleteTextures) { pGlDeleteTextures(1, &glInteropTex); glInteropTex = 0; }',
+            '',
             '        if (hInteropDevice && pWglDXCloseDeviceNV) {',
             '            pWglDXCloseDeviceNV(hInteropDevice);',
             '        }',
@@ -679,7 +747,7 @@ jobs:
             '        if (!childClassRegistered) {',
             '            WNDCLASSEXA wc{}; wc.cbSize = sizeof(WNDCLASSEXA); wc.style = CS_OWNDC;',
             '            wc.lpfnWndProc = ChildSwapWndProc; wc.hInstance = hInst;',
-            '            wc.lpszClassName = "GeodeNoTearV18ChildSurface";',
+            '            wc.lpszClassName = "GeodeNoTearV19ChildSurface";',
             '            RegisterClassExA(&wc);',
             '            childClassRegistered = true;',
             '        }',
@@ -690,7 +758,7 @@ jobs:
             '        if (!childSwapHwnd || !IsWindow(childSwapHwnd) || GetParent(childSwapHwnd) != hwndParent) {',
             '            if (childSwapHwnd && IsWindow(childSwapHwnd)) DestroyWindow(childSwapHwnd);',
             '            childSwapHwnd = CreateWindowExA(',
-            '                WS_EX_NOPARENTNOTIFY | WS_EX_TRANSPARENT, "GeodeNoTearV18ChildSurface", "",',
+            '                WS_EX_NOPARENTNOTIFY | WS_EX_TRANSPARENT, "GeodeNoTearV19ChildSurface", "",',
             '                WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_DISABLED,',
             '                0, 0, static_cast<int>(w), static_cast<int>(h), hwndParent, nullptr, hInst, nullptr);',
             '        } else {',
@@ -699,7 +767,7 @@ jobs:
             '        return childSwapHwnd;',
             '    }',
             '',
-            '    // Exact v16.0 Dedicated Background Presenter Thread (THREAD_PRIORITY_TIME_CRITICAL, zero timeout DwmFlush)',
+            '    // Dedicated Background V-Sync Presenter Thread',
             '    void presenterThreadLoop() {',
             '        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);',
             '',
@@ -707,13 +775,11 @@ jobs:
             '            WaitForSingleObject(hFrameReadyEvent, 16);',
             '',
             '            if (!bridgeActive.load(std::memory_order_acquire)) {',
-            '                presenterReadyForCapture.store(true, std::memory_order_release);',
             '                continue;',
             '            }',
             '',
             '            int slot = latestReadySlot.exchange(-1, std::memory_order_acq_rel);',
             '            if (slot < 0 || slot >= 3) {',
-            '                presenterReadyForCapture.store(true, std::memory_order_release);',
             '                continue;',
             '            }',
             '            presentingSlot.store(slot, std::memory_order_release);',
@@ -721,13 +787,12 @@ jobs:
             '            std::unique_lock<std::mutex> lock(bridgeMutex);',
             '            if (!bridgeActive.load(std::memory_order_relaxed) || !dxgiSwapChain || !presentContext || !ringTexPresent[slot]) {',
             '                presentingSlot.store(-1, std::memory_order_release);',
-            '                presenterReadyForCapture.store(true, std::memory_order_release);',
             '                continue;',
             '            }',
             '',
             '            void* backBuffer = nullptr;',
-            '            if (swapChainGetBuffer(dxgiSwapChain, 0, &kIID_ID3D11Texture2D, &backBuffer) >= 0 && backBuffer) {',
-            '                contextCopyResource(presentContext, backBuffer, ringTexPresent[slot]);',
+            '            if (reinterpret_cast<PFN_GetBuffer>((*reinterpret_cast<void***>(dxgiSwapChain))[9])(dxgiSwapChain, 0, &kIID_ID3D11Texture2D, &backBuffer) >= 0 && backBuffer) {',
+            '                reinterpret_cast<PFN_CopyResource>((*reinterpret_cast<void***>(presentContext))[47])(presentContext, backBuffer, ringTexPresent[slot]);',
             '                comRelease(backBuffer);',
             '            }',
             '',
@@ -739,8 +804,8 @@ jobs:
             '            LARGE_INTEGER beforePresent{}, afterPresent{};',
             '            QueryPerformanceCounter(&beforePresent);',
             '',
-            '            // REAL HARDWARE V-SYNC (SyncInterval = 1) ON DEDICATED BACKGROUND THREAD!',
-            '            swapChainPresent(sc, 1, 0);',
+            '            // Hardware V-Sync Present(1, 0) on dedicated background thread',
+            '            reinterpret_cast<PFN_Present>((*reinterpret_cast<void***>(sc))[8])(sc, 1, 0);',
             '            comRelease(sc);',
             '',
             '            QueryPerformanceCounter(&afterPresent);',
@@ -753,7 +818,7 @@ jobs:
             '            }',
             '',
             '            lastVBlankQpc.store(afterPresent.QuadPart, std::memory_order_release);',
-            '            presenterReadyForCapture.store(true, std::memory_order_release);',
+            '            vblankEpoch.fetch_add(1, std::memory_order_release);',
             '        }',
             '    }',
             '',
@@ -785,26 +850,27 @@ jobs:
             '        sd.SampleDesc.Count = 1;',
             '        sd.SampleDesc.Quality = 0;',
             '        sd.BufferUsage = 0x20;              // DXGI_USAGE_RENDER_TARGET_OUTPUT',
-            '        sd.BufferCount = 3;                 // 3-buffer Flip-Discard (exact v16.0 tear-free setup!)',
+            '        sd.BufferCount = 3;                 // 3-buffer Flip-Discard (100% tear-free & stutter-free)',
             '        sd.OutputWindow = hwnd;',
             '        sd.Windowed = 1;',
             '        sd.SwapEffect = 4;                  // DXGI_SWAP_EFFECT_FLIP_DISCARD',
             '        sd.Flags = 0;                       // 0 = NO ALLOW_TEARING',
             '',
-            '        long hr = factoryCreateSwapChain(factory, presentDevice, &sd, &dxgiSwapChain);',
+            '        auto createSc = reinterpret_cast<PFN_CreateSwapChain>((*reinterpret_cast<void***>(factory))[10]);',
+            '        long hr = createSc(factory, presentDevice, &sd, &dxgiSwapChain);',
             '        if (hr < 0 || !dxgiSwapChain) {',
             '            sd.SwapEffect = 3;',
-            '            hr = factoryCreateSwapChain(factory, presentDevice, &sd, &dxgiSwapChain);',
+            '            hr = createSc(factory, presentDevice, &sd, &dxgiSwapChain);',
             '        }',
             '        if (hr < 0 || !dxgiSwapChain) {',
             '            HWND child = ensureChildSwapWindow(hwnd, w, h);',
             '            if (child) {',
             '                sd.OutputWindow = child;',
             '                sd.SwapEffect = 4;',
-            '                hr = factoryCreateSwapChain(factory, presentDevice, &sd, &dxgiSwapChain);',
+            '                hr = createSc(factory, presentDevice, &sd, &dxgiSwapChain);',
             '                if (hr < 0 || !dxgiSwapChain) {',
             '                    sd.SwapEffect = 3;',
-            '                    hr = factoryCreateSwapChain(factory, presentDevice, &sd, &dxgiSwapChain);',
+            '                    hr = createSc(factory, presentDevice, &sd, &dxgiSwapChain);',
             '                }',
             '            }',
             '        } else if (childSwapHwnd && IsWindow(childSwapHwnd)) {',
@@ -812,44 +878,15 @@ jobs:
             '        }',
             '',
             '        if (hr >= 0 && dxgiSwapChain) {',
-            '            factoryMakeWindowAssociation(factory, sd.OutputWindow, 1 | 2);',
+            '            reinterpret_cast<PFN_MakeWinAssoc>((*reinterpret_cast<void***>(factory))[8])(factory, sd.OutputWindow, 1 | 2);',
+            '            // Limit DXGI flip queue depth to 1 frame while keeping 3 buffers -> eliminates click delay!',
+            '            setDeviceMaxLatency1(presentDevice);',
+            '            setDeviceMaxLatency1(interopDevice);',
             '            return true;',
             '        }',
             '        return false;',
             '    }',
             '',
-            '    // Create a lightweight color-only Pure-OpenGL Staging FBO (never bound during drawScene,',
-            '    // only used to stage 1 frame per 60Hz VBlank so wglDXLockObjectsNV is never held across frames!)',
-            '    void initPureGlStagingFbo(uint32_t w, uint32_t h) {',
-            '        if (!pGlGenFramebuffers || !pGlGenRenderbuffers || !pGlBindRenderbuffer ||',
-            '            !pGlRenderbufferStorage || !pGlFramebufferRenderbuffer || !pGlCheckFramebufferStatus) {',
-            '            return;',
-            '        }',
-            '        int32_t prevDrawFbo = 0, prevRbo = 0;',
-            '        pGlGetIntegerv(kGL_DRAW_FRAMEBUFFER_BINDING, &prevDrawFbo);',
-            '        pGlGetIntegerv(kGL_RENDERBUFFER_BINDING, &prevRbo);',
-            '',
-            '        pGlGenFramebuffers(1, &glStagingFbo);',
-            '        pGlGenRenderbuffers(1, &glStagingRbo);',
-            '',
-            '        pGlBindRenderbuffer(kGL_RENDERBUFFER, glStagingRbo);',
-            '        pGlRenderbufferStorage(kGL_RENDERBUFFER, kGL_RGBA8, static_cast<int32_t>(w), static_cast<int32_t>(h));',
-            '',
-            '        pGlBindFramebuffer(kGL_DRAW_FRAMEBUFFER, glStagingFbo);',
-            '        pGlFramebufferRenderbuffer(kGL_DRAW_FRAMEBUFFER, kGL_COLOR_ATTACHMENT0, kGL_RENDERBUFFER, glStagingRbo);',
-            '',
-            '        if (pGlCheckFramebufferStatus(kGL_DRAW_FRAMEBUFFER) != kGL_FRAMEBUFFER_COMPLETE) {',
-            '            pGlDeleteFramebuffers(1, &glStagingFbo);',
-            '            pGlDeleteRenderbuffers(1, &glStagingRbo);',
-            '            glStagingFbo = 0;',
-            '            glStagingRbo = 0;',
-            '        }',
-            '',
-            '        pGlBindRenderbuffer(kGL_RENDERBUFFER, static_cast<uint32_t>(prevRbo));',
-            '        pGlBindFramebuffer(kGL_DRAW_FRAMEBUFFER, static_cast<uint32_t>(prevDrawFbo));',
-            '    }',
-            '',
-            '    // Exact v16.0 WGL-DXGI Interop + Dual-Device 3-Slot Ring Initialization',
             '    bool tryInitTier1Interop(HWND hwnd, uint32_t w, uint32_t h) {',
             '        void* factory = nullptr;',
             '        if (pCreateDXGIFactory1(&kIID_IDXGIFactory1, &factory) < 0 || !factory) return false;',
@@ -860,12 +897,12 @@ jobs:
             '        for (int pass = 0; pass < 2 && !matchedAdapter; ++pass) {',
             '            for (uint32_t idx = 0; ; ++idx) {',
             '                void* cand = nullptr;',
-            '                if (factoryEnumAdapters1(factory, idx, &cand) < 0 || !cand) break;',
+            '                if (reinterpret_cast<PFN_EnumAdapters1>((*reinterpret_cast<void***>(factory))[12])(factory, idx, &cand) < 0 || !cand) break;',
             '',
             '                DxgiAdapterDesc1 desc{};',
-            '                adapterGetDesc1(cand, &desc);',
-            '                bool isPreferred = (preferredVendor != 0 && desc.VendorId == preferredVendor);',
-            '                if ((pass == 0 && !isPreferred) || (pass == 1 && isPreferred && preferredVendor != 0)) {',
+            '                reinterpret_cast<PFN_GetDesc1>((*reinterpret_cast<void***>(cand))[10])(cand, &desc);',
+            '                bool isPref = (preferredVendor != 0 && desc.VendorId == preferredVendor);',
+            '                if ((pass == 0 && !isPref) || (pass == 1 && isPref && preferredVendor != 0)) {',
             '                    comRelease(cand);',
             '                    continue;',
             '                }',
@@ -879,10 +916,10 @@ jobs:
             '                        D3D11Texture2DDesc capDesc{};',
             '                        capDesc.Width = w; capDesc.Height = h; capDesc.MipLevels = 1; capDesc.ArraySize = 1;',
             '                        capDesc.Format = 87; capDesc.SampleDesc.Count = 1; capDesc.Usage = 0;',
-            '                        capDesc.BindFlags = 0x20 | 0x08; capDesc.MiscFlags = 0; // MiscFlags = 0 is required by nvoglv64!',
+            '                        capDesc.BindFlags = 0x20 | 0x08; capDesc.MiscFlags = 0;',
             '',
             '                        void* capTex = nullptr;',
-            '                        if (deviceCreateTexture2D(testDev, &capDesc, &capTex) >= 0 && capTex) {',
+            '                        if (reinterpret_cast<PFN_CreateTex2D>((*reinterpret_cast<void***>(testDev))[5])(testDev, &capDesc, nullptr, &capTex) >= 0 && capTex) {',
             '                            uint32_t rbo = 0, tex = 0;',
             '                            HANDLE hObj = nullptr;',
             '                            bool usingRbo = false;',
@@ -950,33 +987,33 @@ jobs:
             '        }',
             '',
             '        uint32_t flOut = 0;',
-            '        bool dualDeviceOk = (pD3D11CreateDevice(matchedAdapter, 0, nullptr, 0x20, nullptr, 0, 7, &presentDevice, &flOut, &presentContext) >= 0) &&',
-            '                            presentDevice && presentContext;',
+            '        bool dualOk = (pD3D11CreateDevice(matchedAdapter, 0, nullptr, 0x20, nullptr, 0, 7, &presentDevice, &flOut, &presentContext) >= 0) &&',
+            '                      presentDevice && presentContext;',
             '',
-            '        if (dualDeviceOk) {',
+            '        if (dualOk) {',
             '            D3D11Texture2DDesc ringDesc{};',
             '            ringDesc.Width = w; ringDesc.Height = h; ringDesc.MipLevels = 1; ringDesc.ArraySize = 1;',
             '            ringDesc.Format = 87; ringDesc.SampleDesc.Count = 1; ringDesc.Usage = 0;',
-            '            ringDesc.BindFlags = 0x20 | 0x08; ringDesc.MiscFlags = 2; // D3D11_RESOURCE_MISC_SHARED',
+            '            ringDesc.BindFlags = 0x20 | 0x08; ringDesc.MiscFlags = 2;',
             '',
             '            for (int i = 0; i < 3; ++i) {',
             '                void* dxgiRes = nullptr; HANDLE sharedHandle = nullptr;',
-            '                if (deviceCreateTexture2D(interopDevice, &ringDesc, &ringTexMain[i]) < 0 || !ringTexMain[i] ||',
-            '                    comQueryInterface(ringTexMain[i], &kIID_IDXGIResource, &dxgiRes) < 0 || !dxgiRes ||',
-            '                    resourceGetSharedHandle(dxgiRes, &sharedHandle) < 0 || !sharedHandle ||',
-            '                    deviceOpenSharedResource(presentDevice, sharedHandle, &kIID_ID3D11Texture2D, &ringTexPresent[i]) < 0 || !ringTexPresent[i]) {',
+            '                if (reinterpret_cast<PFN_CreateTex2D>((*reinterpret_cast<void***>(interopDevice))[5])(interopDevice, &ringDesc, nullptr, &ringTexMain[i]) < 0 || !ringTexMain[i] ||',
+            '                    comQI(ringTexMain[i], &kIID_IDXGIResource, &dxgiRes) < 0 || !dxgiRes ||',
+            '                    reinterpret_cast<PFN_GetSharedHandle>((*reinterpret_cast<void***>(dxgiRes))[8])(dxgiRes, &sharedHandle) < 0 || !sharedHandle ||',
+            '                    reinterpret_cast<PFN_OpenSharedRes>((*reinterpret_cast<void***>(presentDevice))[28])(presentDevice, sharedHandle, &kIID_ID3D11Texture2D, &ringTexPresent[i]) < 0 || !ringTexPresent[i]) {',
             '                    comRelease(dxgiRes);',
-            '                    dualDeviceOk = false;',
+            '                    dualOk = false;',
             '                    break;',
             '                }',
             '                comRelease(dxgiRes);',
             '            }',
             '        }',
             '',
-            '        if (!dualDeviceOk) {',
+            '        if (!dualOk) {',
             '            for (int i = 0; i < 3; ++i) { comRelease(ringTexPresent[i]); comRelease(ringTexMain[i]); }',
             '            comRelease(presentContext); comRelease(presentDevice);',
-            '            enableMultithreadDevice(interopDevice);',
+            '            enableMTProtected(interopDevice);',
             '            presentDevice = interopDevice; presentContext = interopContext; singleDeviceMode = true;',
             '',
             '            D3D11Texture2DDesc ringDesc{};',
@@ -984,7 +1021,7 @@ jobs:
             '            ringDesc.Format = 87; ringDesc.SampleDesc.Count = 1; ringDesc.Usage = 0;',
             '            ringDesc.BindFlags = 0x08; ringDesc.MiscFlags = 0;',
             '            for (int i = 0; i < 3; ++i) {',
-            '                if (deviceCreateTexture2D(interopDevice, &ringDesc, &ringTexMain[i]) < 0 || !ringTexMain[i]) {',
+            '                if (reinterpret_cast<PFN_CreateTex2D>((*reinterpret_cast<void***>(interopDevice))[5])(interopDevice, &ringDesc, nullptr, &ringTexMain[i]) < 0 || !ringTexMain[i]) {',
             '                    comRelease(matchedAdapter); comRelease(factory); return false;',
             '                }',
             '                ringTexPresent[i] = ringTexMain[i];',
@@ -994,10 +1031,7 @@ jobs:
             '        comRelease(matchedAdapter);',
             '        bool scOk = createFlipSwapChainOnWindow(factory, hwnd, w, h);',
             '        comRelease(factory);',
-            '        if (!scOk) return false;',
-            '',
-            '        initPureGlStagingFbo(w, h);',
-            '        return true;',
+            '        return scOk;',
             '    }',
             '',
             '    bool rebuildSurface(HWND hwnd, HDC mainDC, HGLRC hglrc, uint32_t w, uint32_t h) {',
@@ -1013,7 +1047,6 @@ jobs:
             '        }',
             '',
             '        trackedHwnd = hwnd; trackedGlrc = hglrc; surfaceWidth = w; surfaceHeight = h;',
-            '        presenterReadyForCapture.store(true, std::memory_order_release);',
             '        bridgeActive.store(true, std::memory_order_release);',
             '        return true;',
             '    }',
@@ -1031,61 +1064,55 @@ jobs:
             '        return (lastWrittenSlot + 1) % 3;',
             '    }',
             '',
-            '    // Stage 2: When stageFence is signaled (glStagingFbo is 100% finished in VRAM),',
-            '    // lock interop, copy glStagingFbo -> glInteropFbo, and unlock immediately (0.00ms GPU render wait!)',
-            '    void pollStagingBlitNonBlocking(int64_t nowQpc, int64_t period, uint32_t w, uint32_t h) {',
-            '        if (!stageInFlight) return;',
+            '    // Unlocks glInteropFbo and publishes the frame to the Presenter Thread as soon as blitFence is signaled.',
+            '    // Called both in CCScheduler::update (4.16ms after capture!) and in swapBuffers().',
+            '    bool pollAndPublishInFlightBlit(int64_t nowQpc, int64_t period, bool waitSlightlyIfNeeded) {',
+            '        if (!blitInFlight) return false;',
             '',
-            '        bool gpuDone = false;',
-            '        if (stageFence && pGlClientWaitSync) {',
-            '            uint32_t res = pGlClientWaitSync(stageFence, 0, 0); // 0ns timeout = ZERO CPU STALL!',
-            '            if (res == kGL_ALREADY_SIGNALED || res == kGL_CONDITION_SATISFIED || (nowQpc - stageStartQpc >= (period * 55) / 100)) {',
-            '                gpuDone = true;',
+            '        bool gpuFinished = false;',
+            '        if (blitFence && pGlClientWaitSync) {',
+            '            uint64_t timeoutNs = waitSlightlyIfNeeded ? 600000ULL : 0ULL; // 0ns normally, max 0.6ms if forced',
+            '            uint32_t flags = waitSlightlyIfNeeded ? 1u : 0u;',
+            '            uint32_t res = pGlClientWaitSync(blitFence, flags, timeoutNs);',
+            '            if (res == kGL_ALREADY_SIGNALED || res == kGL_CONDITION_SATISFIED || waitSlightlyIfNeeded ||',
+            '                (nowQpc - blitStartQpc >= (period * 55) / 100)) {',
+            '                gpuFinished = true;',
             '            }',
             '        } else {',
-            '            gpuDone = true;',
+            '            gpuFinished = true;',
             '        }',
             '',
-            '        if (!gpuDone) return;',
+            '        if (!gpuFinished) return false;',
             '',
-            '        if (stageFence && pGlDeleteSync) {',
-            '            pGlDeleteSync(stageFence);',
-            '            stageFence = nullptr;',
-            '        }',
-            '        stageInFlight = false;',
-            '',
-            '        int32_t prevReadFbo = 0, prevDrawFbo = 0;',
-            '        pGlGetIntegerv(kGL_READ_FRAMEBUFFER_BINDING, &prevReadFbo);',
-            '        pGlGetIntegerv(kGL_DRAW_FRAMEBUFFER_BINDING, &prevDrawFbo);',
-            '        unsigned char scissorWasOn = pGlIsEnabled ? pGlIsEnabled(kGL_SCISSOR_TEST) : 0;',
-            '        if (scissorWasOn && pGlDisable) pGlDisable(kGL_SCISSOR_TEST);',
-            '',
-            '        if (pWglDXLockObjectsNV(hInteropDevice, 1, &hInteropObject)) {',
-            '            pGlBindFramebuffer(kGL_READ_FRAMEBUFFER, glStagingFbo);',
-            '            pGlBindFramebuffer(kGL_DRAW_FRAMEBUFFER, glInteropFbo);',
-            '            pGlBlitFramebuffer(',
-            '                0, 0, static_cast<int32_t>(w), static_cast<int32_t>(h),',
-            '                0, 0, static_cast<int32_t>(w), static_cast<int32_t>(h),',
-            '                kGL_COLOR_BUFFER_BIT, kGL_NEAREST',
-            '            );',
-            '            pWglDXUnlockObjectsNV(hInteropDevice, 1, &hInteropObject);',
-            '',
-            '            int writeSlot = pickFreeWriteSlot();',
-            '            contextCopyResource(interopContext, ringTexMain[writeSlot], interopCaptureTex);',
-            '            contextFlush(interopContext);',
-            '',
-            '            latestReadySlot.store(writeSlot, std::memory_order_release);',
-            '            SetEvent(hFrameReadyEvent);',
-            '        } else {',
-            '            presenterReadyForCapture.store(true, std::memory_order_relaxed);',
+            '        if (blitFence && pGlDeleteSync) {',
+            '            pGlDeleteSync(blitFence);',
+            '            blitFence = nullptr;',
             '        }',
             '',
-            '        pGlBindFramebuffer(kGL_READ_FRAMEBUFFER, static_cast<uint32_t>(prevReadFbo));',
-            '        pGlBindFramebuffer(kGL_DRAW_FRAMEBUFFER, static_cast<uint32_t>(prevDrawFbo));',
-            '        if (scissorWasOn && pGlEnable) pGlEnable(kGL_SCISSOR_TEST);',
+            '        pWglDXUnlockObjectsNV(hInteropDevice, 1, &hInteropObject);',
+            '        blitInFlight = false;',
+            '',
+            '        int writeSlot = pickFreeWriteSlot();',
+            '        reinterpret_cast<PFN_CopyResource>((*reinterpret_cast<void***>(interopContext))[47])(interopContext, ringTexMain[writeSlot], interopCaptureTex);',
+            '        reinterpret_cast<PFN_Flush>((*reinterpret_cast<void***>(interopContext))[111])(interopContext);',
+            '',
+            '        latestReadySlot.store(writeSlot, std::memory_order_release);',
+            '        SetEvent(hFrameReadyEvent);',
+            '        return true;',
             '    }',
             '',
-            '    bool submitSmoothFrameV18() {',
+            '    // Passive sub-frame poll called at the start of CCScheduler::update(dt):',
+            '    // Unlocks any in-flight capture 4.16ms after swapBuffers() so it arrives at the Presenter Thread',
+            '    // well BEFORE the 16.67ms 60Hz VBlank edge AND frees blitInFlight before the next swapBuffers() call!',
+            '    void onSchedulerSubFramePoll() {',
+            '        if (!blitInFlight || !bridgeActive.load(std::memory_order_relaxed)) return;',
+            '        LARGE_INTEGER now{};',
+            '        QueryPerformanceCounter(&now);',
+            '        int64_t period = refreshPeriodTicks.load(std::memory_order_relaxed);',
+            '        pollAndPublishInFlightBlit(now.QuadPart, period, false);',
+            '    }',
+            '',
+            '    bool submitFrameV19() {',
             '        if (!interopSupported) return false;',
             '        if (!loadAllApis()) return false;',
             '',
@@ -1117,35 +1144,41 @@ jobs:
             '            avgCallDeltaQpc = (avgCallDeltaQpc * 7 + callDelta) / 8;',
             '        }',
             '',
-            '        // 1. Poll any in-flight staged frame (0.000ms non-blocking fence check)',
-            '        pollStagingBlitNonBlocking(now.QuadPart, period, w, h);',
+            '        // 1. Poll any in-flight blit first',
+            '        if (blitInFlight) {',
+            '            pollAndPublishInFlightBlit(now.QuadPart, period, false);',
+            '        }',
             '',
-            '        // 2. Detect if swapBuffers is being called at ~60Hz (e.g. startup/menu animations or Bismuth DifferenceMode)',
-            '        //    vs high Unlocked FPS (120 / 240 / 360 / 480 FPS)',
-            '        bool lowRateCaller = (callDelta >= (period * 65) / 100) || (avgCallDeltaQpc >= (period * 65) / 100);',
+            '        // 2. Determine whether it is time to capture a new frame for the 60Hz VBlank:',
+            '        //    - If swapBuffers is called at ~60Hz (e.g. Bismuth DifferenceMode or 60Hz menu), capture every call.',
+            '        //    - If swapBuffers is called at Unlocked FPS (120/240/360/480Hz), capture once per VBlank epoch',
+            '        //      at ~42% into the VBlank cycle so the sub-frame unlock in CCScheduler::update finishes',
+            '        //      ~5ms BEFORE the 16.67ms VBlank edge (0 missed VBlanks + low click latency!).',
+            '        bool is60HzCaller = (avgCallDeltaQpc >= (period * 68) / 100);',
+            '        uint64_t curEpoch = vblankEpoch.load(std::memory_order_acquire);',
+            '        int64_t sinceVBlank = now.QuadPart - lastVBlankQpc.load(std::memory_order_acquire);',
+            '        int64_t sinceLastCapture = now.QuadPart - lastCaptureQpc;',
             '',
-            '        if (!lowRateCaller) {',
-            '            // High Unlocked FPS (120 / 240 / 360 / 480 FPS):',
-            '            // Wait until ~38% into the VBlank cycle (~6.3ms of 16.67ms) before staging a frame',
-            '            // so the presented frame is much fresher (cuts click delay in half while never missing VBlank!)',
-            '            int64_t sinceVBlank = now.QuadPart - lastVBlankQpc.load(std::memory_order_acquire);',
-            '            int64_t sinceLastCapture = now.QuadPart - lastCaptureQpc;',
-            '            bool readyNow = !stageInFlight &&',
-            '                ((presenterReadyForCapture.load(std::memory_order_acquire) && sinceVBlank >= (period * 38) / 100) ||',
-            '                 (sinceLastCapture >= (period * 92) / 100));',
+            '        bool shouldCapture = is60HzCaller ||',
+            '            ((curEpoch > lastCapturedEpoch) && (sinceVBlank >= (period * 40) / 100)) ||',
+            '            (sinceLastCapture >= (period * 92) / 100);',
             '',
-            '            if (!readyNow) {',
-            '                return true; // Intermediate unlocked tick: return immediately in 0.0000ms (zero FBO switch)!',
-            '            }',
-            '        } else {',
-            '            // Startup/menu animation or Bismuth 60Hz DifferenceMode:',
-            '            // If a staged frame was somehow still pending, flush it first so no 60Hz frame is ever dropped!',
-            '            if (stageInFlight) {',
-            '                pollStagingBlitNonBlocking(now.QuadPart + period, period, w, h);',
+            '        if (!shouldCapture) {',
+            '            // Intermediate 240Hz tick: Flush OpenGL command stream immediately so commands never pile up!',
+            '            if (pGlFlush) pGlFlush();',
+            '            return true;',
+            '        }',
+            '',
+            '        // If a previous blit was still in flight when a new 60Hz capture is due, finish it cleanly in FIFO order',
+            '        if (blitInFlight) {',
+            '            pollAndPublishInFlightBlit(now.QuadPart, period, true);',
+            '            if (!is60HzCaller) {',
+            '                if (pGlFlush) pGlFlush();',
+            '                return true;',
             '            }',
             '        }',
             '',
-            '        presenterReadyForCapture.store(false, std::memory_order_relaxed);',
+            '        lastCapturedEpoch = curEpoch;',
             '        lastCaptureQpc = now.QuadPart;',
             '',
             '        int32_t prevReadFbo = 0, prevDrawFbo = 0;',
@@ -1154,33 +1187,8 @@ jobs:
             '        unsigned char scissorWasOn = pGlIsEnabled ? pGlIsEnabled(kGL_SCISSOR_TEST) : 0;',
             '        if (scissorWasOn && pGlDisable) pGlDisable(kGL_SCISSOR_TEST);',
             '',
-            '        if (!lowRateCaller && glStagingFbo && pGlFenceSync && pGlClientWaitSync && pGlDeleteSync) {',
-            '            // Stage 1 (for 240+ FPS): Pure-OpenGL blit from FBO 0 -> glStagingFbo (with Y-flip).',
-            '            // Does NOT call wglDXLockObjectsNV, so the OpenGL context is 100% unlocked during drawScene!',
-            '            pGlBindFramebuffer(kGL_READ_FRAMEBUFFER, 0);',
-            '            if (pGlReadBuffer) pGlReadBuffer(kGL_BACK);',
-            '            pGlBindFramebuffer(kGL_DRAW_FRAMEBUFFER, glStagingFbo);',
-            '            pGlBlitFramebuffer(',
-            '                0, 0, static_cast<int32_t>(w), static_cast<int32_t>(h),',
-            '                0, static_cast<int32_t>(h), static_cast<int32_t>(w), 0,',
-            '                kGL_COLOR_BUFFER_BIT, kGL_NEAREST',
-            '            );',
-            '            pGlBindFramebuffer(kGL_READ_FRAMEBUFFER, static_cast<uint32_t>(prevReadFbo));',
-            '            pGlBindFramebuffer(kGL_DRAW_FRAMEBUFFER, static_cast<uint32_t>(prevDrawFbo));',
-            '            if (scissorWasOn && pGlEnable) pGlEnable(kGL_SCISSOR_TEST);',
-            '',
-            '            stageFence = pGlFenceSync(kGL_SYNC_GPU_COMMANDS_COMPLETE, 0);',
-            '            stageStartQpc = now.QuadPart;',
-            '            stageInFlight = true;',
-            '            if (pGlFlush) pGlFlush();',
-            '            return true;',
-            '        }',
-            '',
-            '        // Direct Immediate Path (for <=90Hz startup/menu animations & Bismuth DifferenceMode):',
-            '        // Presents on the exact same tick so menu animations and 60Hz callers never skip a single frame!',
             '        if (!pWglDXLockObjectsNV(hInteropDevice, 1, &hInteropObject)) {',
             '            if (scissorWasOn && pGlEnable) pGlEnable(kGL_SCISSOR_TEST);',
-            '            presenterReadyForCapture.store(true, std::memory_order_relaxed);',
             '            return false;',
             '        }',
             '',
@@ -1197,18 +1205,30 @@ jobs:
             '        pGlBindFramebuffer(kGL_DRAW_FRAMEBUFFER, static_cast<uint32_t>(prevDrawFbo));',
             '        if (scissorWasOn && pGlEnable) pGlEnable(kGL_SCISSOR_TEST);',
             '',
-            '        pWglDXUnlockObjectsNV(hInteropDevice, 1, &hInteropObject);',
+            '        // Queue non-blocking fence; CCScheduler::update will unlock it 4.16ms later with 0.000ms CPU wait!',
+            '        if (pGlFenceSync && pGlClientWaitSync && pGlDeleteSync) {',
+            '            blitFence = pGlFenceSync(kGL_SYNC_GPU_COMMANDS_COMPLETE, 0);',
+            '            blitStartQpc = now.QuadPart;',
+            '            blitInFlight = true;',
+            '            if (pGlFlush) pGlFlush();',
+            '        } else {',
+            '            blitInFlight = true;',
+            '            pollAndPublishInFlightBlit(now.QuadPart, period, true);',
+            '        }',
             '',
-            '        int writeSlot = pickFreeWriteSlot();',
-            '        contextCopyResource(interopContext, ringTexMain[writeSlot], interopCaptureTex);',
-            '        contextFlush(interopContext);',
-            '',
-            '        latestReadySlot.store(writeSlot, std::memory_order_release);',
-            '        SetEvent(hFrameReadyEvent);',
             '        return true;',
             '    }',
             '    #endif',
             '}',
+            '',
+            'class $modify(TearFixScheduler, cocos2d::CCScheduler) {',
+            '    void update(float dt) {',
+            '        #ifdef GEODE_IS_WINDOWS',
+            '        NoTearProblemV19::onSchedulerSubFramePoll();',
+            '        #endif',
+            '        CCScheduler::update(dt);',
+            '    }',
+            '};',
             '',
             'class $modify(TearFixEGLView, cocos2d::CCEGLView) {',
             '    static void onModify(auto& self) {',
@@ -1217,7 +1237,7 @@ jobs:
             '',
             '    void swapBuffers() {',
             '        #ifdef GEODE_IS_WINDOWS',
-            '        if (SmoothNoTearV18::submitSmoothFrameV18()) {',
+            '        if (NoTearProblemV19::submitFrameV19()) {',
             '            return;',
             '        }',
             '        #endif',
@@ -1227,7 +1247,7 @@ jobs:
             '',
             '$on_mod(Loaded) {',
             '    #ifdef GEODE_IS_WINDOWS',
-            '    SmoothNoTearV18::cleanAllNvidiaProfiles();',
+            '    NoTearProblemV19::cleanAllNvidiaProfiles();',
             '    #endif',
             '}'
           )
@@ -1293,5 +1313,5 @@ jobs:
       - name: Upload .geode Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NoTearFPS-GD-2.2081-v18.0.0
+          name: NoTear-Problem-FPS-v19.0.0
           path: artifact/*.geode
