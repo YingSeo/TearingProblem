@@ -18,7 +18,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Generate Icon, English Metadata, CMake and v22.0 Respawn-Proof Engine
+      - name: Generate Brand Icon, Metadata, CMake and v23.0 Source
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
@@ -31,7 +31,7 @@ jobs:
             Remove-Item -Path "main.cpp" -Force
           }
 
-          # 1. Generate 256x256 Cyber-Neon Icon (logo.png)
+          # 1. Generate 256x256 Signature Brand Icon for "Bypass Screen Tear" (logo.png)
           $logoPath = Join-Path $PWD "logo.png"
           $csCode = @'
           using System;
@@ -52,6 +52,20 @@ jobs:
                   return path;
               }
 
+              private static GraphicsPath CreateHexShield(float cx, float cy, float radius) {
+                  GraphicsPath path = new GraphicsPath();
+                  PointF[] pts = new PointF[6];
+                  for (int i = 0; i < 6; i++) {
+                      double angle = (Math.PI / 180.0) * (60.0 * i - 90.0);
+                      pts[i] = new PointF(
+                          cx + (float)(radius * Math.Cos(angle)),
+                          cy + (float)(radius * Math.Sin(angle))
+                      );
+                  }
+                  path.AddPolygon(pts);
+                  return path;
+              }
+
               public static void Build(string path) {
                   using (Bitmap bmp = new Bitmap(256, 256, PixelFormat.Format32bppArgb))
                   using (Graphics g = Graphics.FromImage(bmp)) {
@@ -60,129 +74,143 @@ jobs:
                       g.PixelOffsetMode = PixelOffsetMode.HighQuality;
                       g.Clear(Color.FromArgb(0, 0, 0, 0));
 
-                      // 1. Outer Rounded Cyber Badge Background
-                      using (GraphicsPath outerPath = CreateRoundedRect(new RectangleF(8f, 8f, 240f, 240f), 42f))
-                      using (LinearGradientBrush bgGrad = new LinearGradientBrush(
-                          new RectangleF(8f, 8f, 240f, 240f),
-                          Color.FromArgb(255, 16, 22, 48),
-                          Color.FromArgb(255, 6, 10, 22),
+                      // 1. Outer Rounded Obsidian Chassis
+                      RectangleF outerBox = new RectangleF(8f, 8f, 240f, 240f);
+                      using (GraphicsPath outerPath = CreateRoundedRect(outerBox, 46f))
+                      using (LinearGradientBrush bgBrush = new LinearGradientBrush(
+                          outerBox,
+                          Color.FromArgb(255, 12, 16, 36),
+                          Color.FromArgb(255, 5, 7, 16),
                           135f)) {
-                          g.FillPath(bgGrad, outerPath);
+                          g.FillPath(bgBrush, outerPath);
 
-                          using (Pen gridPen = new Pen(Color.FromArgb(18, 0, 229, 255), 1f)) {
-                              for (int i = 32; i < 240; i += 24) {
-                                  g.DrawLine(gridPen, 16, i, 240, i);
-                                  g.DrawLine(gridPen, i, 16, i, 240);
+                          // Radial Core Aura
+                          using (GraphicsPath auraPath = new GraphicsPath()) {
+                              auraPath.AddEllipse(18f, 18f, 220f, 220f);
+                              using (PathGradientBrush auraBrush = new PathGradientBrush(auraPath)) {
+                                  auraBrush.CenterColor = Color.FromArgb(95, 0, 220, 255);
+                                  auraBrush.SurroundColors = new Color[] { Color.FromArgb(0, 0, 0, 0) };
+                                  g.FillPath(auraBrush, auraPath);
                               }
                           }
 
-                          using (GraphicsPath glowPath = new GraphicsPath()) {
-                              glowPath.AddEllipse(28f, 36f, 200f, 160f);
-                              using (PathGradientBrush pgb = new PathGradientBrush(glowPath)) {
-                                  pgb.CenterColor = Color.FromArgb(75, 0, 229, 255);
-                                  pgb.SurroundColors = new Color[] { Color.FromArgb(0, 0, 0, 0) };
-                                  g.FillPath(pgb, glowPath);
-                              }
-                          }
-
-                          using (LinearGradientBrush borderGrad = new LinearGradientBrush(
-                              new RectangleF(8f, 8f, 240f, 240f),
-                              Color.FromArgb(255, 0, 245, 255),
-                              Color.FromArgb(255, 138, 43, 226),
+                          // Outer Metallic Neon Rim
+                          using (LinearGradientBrush rimGrad = new LinearGradientBrush(
+                              outerBox,
+                              Color.FromArgb(255, 0, 255, 220),
+                              Color.FromArgb(255, 0, 110, 255),
                               45f))
-                          using (Pen outerPen = new Pen(borderGrad, 6f)) {
-                              g.DrawPath(outerPen, outerPath);
+                          using (Pen rimPen = new Pen(rimGrad, 6.5f)) {
+                              g.DrawPath(rimPen, outerPath);
                           }
                       }
 
-                      using (GraphicsPath innerRing = CreateRoundedRect(new RectangleF(18f, 18f, 220f, 220f), 34f))
-                      using (Pen innerPen = new Pen(Color.FromArgb(90, 0, 255, 200), 2f)) {
-                          g.DrawPath(innerPen, innerRing);
+                      // Inner Accent Frame
+                      using (GraphicsPath innerFrame = CreateRoundedRect(new RectangleF(18f, 18f, 220f, 220f), 36f))
+                      using (Pen innerPen = new Pen(Color.FromArgb(70, 0, 240, 255), 1.8f)) {
+                          g.DrawPath(innerPen, innerFrame);
                       }
 
-                      // 2. Gaming Monitor Frame in Center
-                      RectangleF screenRect = new RectangleF(38f, 66f, 180f, 96f);
-                      using (GraphicsPath screenPath = CreateRoundedRect(screenRect, 14f))
-                      using (LinearGradientBrush screenBg = new LinearGradientBrush(
-                          screenRect,
-                          Color.FromArgb(255, 10, 28, 54),
-                          Color.FromArgb(255, 6, 14, 30),
-                          90f)) {
-                          g.FillPath(screenBg, screenPath);
+                      // 2. Center Hexagonal Brand Crest
+                      using (GraphicsPath hexOuter = CreateHexShield(128f, 110f, 68f))
+                      using (GraphicsPath hexInner = CreateHexShield(128f, 110f, 58f))
+                      using (LinearGradientBrush hexFill = new LinearGradientBrush(
+                          new RectangleF(60f, 42f, 136f, 136f),
+                          Color.FromArgb(255, 18, 36, 74),
+                          Color.FromArgb(255, 8, 14, 32),
+                          90f))
+                      using (LinearGradientBrush hexBorderGrad = new LinearGradientBrush(
+                          new RectangleF(60f, 42f, 136f, 136f),
+                          Color.FromArgb(255, 0, 255, 190),
+                          Color.FromArgb(255, 0, 140, 255),
+                          45f))
+                      using (Pen hexPen = new Pen(hexBorderGrad, 4f))
+                      using (Pen hexInnerPen = new Pen(Color.FromArgb(90, 255, 255, 255), 1.5f)) {
+                          g.FillPath(hexFill, hexOuter);
+                          g.DrawPath(hexPen, hexOuter);
+                          g.DrawPath(hexInnerPen, hexInner);
+                      }
 
-                          // Left side: Red Tearing Glitch bars being eliminated
-                          using (SolidBrush tearRed = new SolidBrush(Color.FromArgb(180, 255, 50, 90)))
-                          using (SolidBrush tearOrange = new SolidBrush(Color.FromArgb(160, 255, 140, 0))) {
-                              g.FillRectangle(tearRed, 48f, 86f, 42f, 5f);
-                              g.FillRectangle(tearOrange, 56f, 100f, 38f, 4f);
-                              g.FillRectangle(tearRed, 44f, 118f, 46f, 5f);
-                              g.FillRectangle(tearOrange, 52f, 134f, 34f, 4f);
-                          }
+                      // 3. Split-Screen Visual Inside Crest (Left: Torn Scanlines, Right: Locked Sync Wave)
+                      using (SolidBrush tearCrimson = new SolidBrush(Color.FromArgb(210, 255, 55, 95)))
+                      using (SolidBrush tearAmber = new SolidBrush(Color.FromArgb(190, 255, 165, 0))) {
+                          g.FillRectangle(tearCrimson, 76f, 84f, 36f, 5f);
+                          g.FillRectangle(tearAmber, 84f, 98f, 30f, 4f);
+                          g.FillRectangle(tearCrimson, 72f, 112f, 38f, 5f);
+                          g.FillRectangle(tearAmber, 80f, 126f, 28f, 4f);
+                      }
 
-                          // Right side: Smooth Locked V-Sync Wave
-                          PointF[] syncWave = new PointF[] {
-                              new PointF(96f, 114f),
-                              new PointF(118f, 114f),
-                              new PointF(132f, 80f),
-                              new PointF(152f, 146f),
-                              new PointF(168f, 96f),
-                              new PointF(180f, 114f),
-                              new PointF(206f, 114f)
-                          };
-                          using (Pen waveGlow = new Pen(Color.FromArgb(90, 0, 255, 170), 11f))
-                          using (Pen waveCore = new Pen(Color.FromArgb(255, 0, 255, 190), 4.5f)) {
-                              waveGlow.LineJoin = LineJoin.Round;
-                              waveCore.LineJoin = LineJoin.Round;
-                              g.DrawLines(waveGlow, syncWave);
-                              g.DrawLines(waveCore, syncWave);
-                          }
+                      PointF[] syncPulse = new PointF[] {
+                          new PointF(122f, 110f),
+                          new PointF(138f, 110f),
+                          new PointF(148f, 82f),
+                          new PointF(162f, 136f),
+                          new PointF(172f, 110f),
+                          new PointF(184f, 110f)
+                      };
+                      using (Pen pulseGlow = new Pen(Color.FromArgb(100, 0, 255, 180), 10f))
+                      using (Pen pulseCore = new Pen(Color.FromArgb(255, 0, 255, 200), 4.2f)) {
+                          pulseGlow.LineJoin = LineJoin.Round;
+                          pulseCore.LineJoin = LineJoin.Round;
+                          g.DrawLines(pulseGlow, syncPulse);
+                          g.DrawLines(pulseCore, syncPulse);
+                      }
 
-                          // Diagonal Laser Divider Beam
-                          using (Pen beamGlow = new Pen(Color.FromArgb(110, 0, 229, 255), 9f))
-                          using (Pen beamCore = new Pen(Color.FromArgb(255, 255, 255, 255), 3f)) {
-                              g.DrawLine(beamGlow, 108f, 68f, 84f, 160f);
-                              g.DrawLine(beamCore, 108f, 68f, 84f, 160f);
-                          }
-
-                          using (Pen screenBorder = new Pen(Color.FromArgb(255, 0, 215, 255), 3f)) {
-                              g.DrawPath(screenBorder, screenPath);
+                      // Dynamic Lightning / Prism Slash ("BYPASS" Blade) Cutting Across the Center
+                      PointF[] bladePts = new PointF[] {
+                          new PointF(136f, 52f),
+                          new PointF(104f, 108f),
+                          new PointF(126f, 108f),
+                          new PointF(114f, 166f),
+                          new PointF(150f, 102f),
+                          new PointF(128f, 102f)
+                      };
+                      using (GraphicsPath bladePath = new GraphicsPath()) {
+                          bladePath.AddPolygon(bladePts);
+                          using (Pen bladeGlow = new Pen(Color.FromArgb(120, 0, 240, 255), 8f))
+                          using (LinearGradientBrush bladeFill = new LinearGradientBrush(
+                              new RectangleF(100f, 50f, 55f, 120f),
+                              Color.FromArgb(255, 255, 255, 255),
+                              Color.FromArgb(255, 0, 240, 255),
+                              90f)) {
+                              bladeGlow.LineJoin = LineJoin.Round;
+                              g.DrawPath(bladeGlow, bladePath);
+                              g.FillPath(bladeFill, bladePath);
                           }
                       }
 
-                      // Monitor Stand Neck & Base
-                      using (SolidBrush standBrush = new SolidBrush(Color.FromArgb(255, 0, 200, 240))) {
-                          g.FillRectangle(standBrush, 116f, 162f, 24f, 10f);
-                          using (GraphicsPath basePill = CreateRoundedRect(new RectangleF(88f, 171f, 80f, 7f), 3.5f)) {
-                              g.FillPath(standBrush, basePill);
-                          }
+                      // 4. Top Brand Tag: "YINGSEO"
+                      using (Font devFont = new Font("Arial", 9.5f, FontStyle.Bold))
+                      using (StringFormat sfCenter = new StringFormat() { Alignment = StringAlignment.Center })
+                      using (SolidBrush cyanText = new SolidBrush(Color.FromArgb(220, 0, 240, 255))) {
+                          g.DrawString("Y I N G S E O", devFont, cyanText, new RectangleF(0f, 24f, 256f, 18f), sfCenter);
                       }
 
-                      // 3. Top Title: "NoTear"
-                      using (Font titleFont = new Font("Arial", 23f, FontStyle.Bold))
-                      using (StringFormat sf = new StringFormat() { Alignment = StringAlignment.Center })
-                      using (SolidBrush shadowBrush = new SolidBrush(Color.FromArgb(200, 0, 0, 0)))
-                      using (SolidBrush titleBrush = new SolidBrush(Color.FromArgb(255, 245, 252, 255))) {
-                          g.DrawString("NoTear", titleFont, shadowBrush, new RectangleF(2f, 23f, 256f, 40f), sf);
-                          g.DrawString("NoTear", titleFont, titleBrush, new RectangleF(0f, 21f, 256f, 40f), sf);
+                      // 5. Main Brand Title: "BYPASS" + Bottom Ribbon: "SCREEN TEAR"
+                      using (Font mainFont = new Font("Arial", 21f, FontStyle.Bold))
+                      using (StringFormat sfCenter = new StringFormat() { Alignment = StringAlignment.Center })
+                      using (SolidBrush shadow = new SolidBrush(Color.FromArgb(210, 0, 0, 0)))
+                      using (SolidBrush white = new SolidBrush(Color.FromArgb(255, 248, 252, 255))) {
+                          g.DrawString("BYPASS", mainFont, shadow, new RectangleF(2f, 172f, 256f, 34f), sfCenter);
+                          g.DrawString("BYPASS", mainFont, white, new RectangleF(0f, 170f, 256f, 34f), sfCenter);
                       }
 
-                      // 4. Bottom Pill Badge: "PROBLEM FPS"
-                      RectangleF pillRect = new RectangleF(34f, 188f, 188f, 36f);
-                      using (GraphicsPath pillPath = CreateRoundedRect(pillRect, 18f))
-                      using (LinearGradientBrush pillGrad = new LinearGradientBrush(
-                          pillRect,
-                          Color.FromArgb(255, 0, 180, 255),
-                          Color.FromArgb(255, 110, 30, 255),
+                      RectangleF badgeRect = new RectangleF(32f, 204f, 192f, 30f);
+                      using (GraphicsPath badgePath = CreateRoundedRect(badgeRect, 15f))
+                      using (LinearGradientBrush badgeFill = new LinearGradientBrush(
+                          badgeRect,
+                          Color.FromArgb(255, 0, 195, 255),
+                          Color.FromArgb(255, 0, 230, 170),
                           0f))
-                      using (Pen pillBorder = new Pen(Color.FromArgb(255, 160, 250, 255), 2f)) {
-                          g.FillPath(pillGrad, pillPath);
-                          g.DrawPath(pillBorder, pillPath);
+                      using (Pen badgePen = new Pen(Color.FromArgb(255, 210, 255, 255), 1.8f)) {
+                          g.FillPath(badgeFill, badgePath);
+                          g.DrawPath(badgePen, badgePath);
                       }
 
-                      using (Font subFont = new Font("Arial", 13.5f, FontStyle.Bold))
-                      using (StringFormat sfSub = new StringFormat() { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
-                      using (SolidBrush whiteBrush = new SolidBrush(Color.FromArgb(255, 255, 255, 255))) {
-                          g.DrawString("PROBLEM FPS", subFont, whiteBrush, pillRect, sfSub);
+                      using (Font subFont = new Font("Arial", 12f, FontStyle.Bold))
+                      using (StringFormat sfMid = new StringFormat() { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                      using (SolidBrush darkText = new SolidBrush(Color.FromArgb(255, 6, 14, 28))) {
+                          g.DrawString("SCREEN TEAR", subFont, darkText, badgeRect, sfMid);
                       }
 
                       bmp.Save(path, ImageFormat.Png);
@@ -193,21 +221,22 @@ jobs:
           Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition $csCode
           [IconBuilder]::Build($logoPath)
 
-          # 2. Generate about.md (100% English with Release & Update Timestamps)
+          # 2. Generate about.md (100% English with Brand Name & Timestamps)
           $buildDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'")
           $aboutLines = @(
-            '# <cy>NoTear-Problem-FPS</c>',
+            '# <cy>Bypass Screen Tear</c>',
             '',
+            '- **<cg>Mod ID:</c>** `yingseo.notear.fps`',
             '- **<cg>Released:</c>** `2026-11-07`',
-            "- **<cy>Updated:</c>** ``$buildDate (v22.0.0)``",
+            "- **<cy>Updated:</c>** ``$buildDate (v23.0.0)``",
             '- **<cp>Target Version:</c>** `Geometry Dash 2.2081 (Geode v5.11.2 - Windows x64)`',
             '',
             '---',
             '',
             '### <cg>Overview</c>',
-            '**NoTear-Problem-FPS** is a lightweight, single-purpose background mod engineered to completely eliminate **horizontal screen tearing (glitch lines)** when **Unlock FPS** (120 / 240 / 360 / 480 FPS) is enabled on a 60Hz display, while maintaining **100% true unlocked framerate**, **instant input response**, and **zero stutter during gameplay or repeated respawns**.',
+            '**Bypass Screen Tear** is a lightweight, single-purpose background mod engineered to completely eliminate **horizontal screen tearing (glitch lines)** when **Unlock FPS** (120 / 240 / 360 / 480 FPS) is enabled on a 60Hz display, while maintaining **100% true unlocked framerate**, **instant input response**, and **zero stutter during gameplay or repeated respawns**.',
             '',
-            '### <cy>Key Features (v22.0 Zero-Lock Architecture)</c>',
+            '### <cy>Key Features (v23.0 Zero-Lock Architecture)</c>',
             '- **Zero-Hold Pure-GL Staging (`glStageFbo`):** Stages frames using a pure OpenGL renderbuffer and only locks `WGL_NV_DX_interop2` for 5 microseconds *after* `glClientWaitSync` confirms the GPU has finished rendering and while the OpenGL command queue is idle at the end of `CCScheduler::update` — completely eliminating WDDM/DXGI lock contention during repeated deaths and respawns.',
             '- **One-Time Startup Loading Latch:** Renders the startup `LoadingLayer` natively and permanently latches `startupLoadingComplete = true` once `MenuLayer` is reached (`0.000ms` runtime RTTI overhead).',
             '- **Hardware DXGI Flip-Discard V-Sync Presenter:** Presents completed frames via a triple-buffered Direct3D 11 `DXGI_SWAP_EFFECT_FLIP_DISCARD` SwapChain on a dedicated background presenter thread locked to the physical 60Hz VBlank (`Present(1, 0)` + `DwmFlush`).',
@@ -217,18 +246,18 @@ jobs:
 
           # 3. Generate changelog.md (100% English)
           $changelogLines = @(
-            "# v22.0.0 ($buildDate)",
-            '- **Fixed Repeated Death/Respawn Lag:** Replaced cross-frame `wglDXLockObjectsNV` holding with a Pure-OpenGL staging buffer (`glStageFbo`) and atomic post-update transfer (`onSchedulerPostUpdate`), ensuring DXGI interop objects are never held locked during `PlayLayer::destroyPlayer` or `PlayLayer::resetLevel`.',
-            '- **Eliminated Runtime RTTI Overhead:** Latched `startupLoadingComplete = true` permanently once `MenuLayer` is entered so `getChildByType<LoadingLayer>` is never called during gameplay.',
-            '- **Fixed Gameplay Frame Drops & VBlank Desync:** Removed `IDXGIDevice1::SetMaximumFrameLatency(1)` queue throttling, removed redundant intermediate `glFlush()` calls, and replaced the 16ms timeout race with a direct `vblankReadyForStage` handshake.',
+            "# v23.0.0 ($buildDate)",
+            '- **Official Brand Identity Update:** Renamed mod display name to **Bypass Screen Tear**, updated package ID and `.geode` archive name to `yingseo.notear.fps`, and introduced the new Hex-Crest signature brand icon.',
+            '- **Preserved v22.0 Zero-Lock Engine:** Retains 100% of the rock-solid Pure-GL Staging and Post-Update Atomic Transfer architecture.',
+            '',
+            '# v22.0.0 (2026-11-11)',
+            '- **Fixed Repeated Death/Respawn Lag:** Replaced cross-frame `wglDXLockObjectsNV` holding with a Pure-OpenGL staging buffer (`glStageFbo`) and atomic post-update transfer (`onSchedulerPostUpdate`).',
+            '- **Eliminated Runtime RTTI Overhead:** Latched `startupLoadingComplete = true` permanently once `MenuLayer` is entered.',
             '',
             '# v21.0.0 (2026-11-10)',
             '- Restored native startup `LoadingLayer` visibility and added a 6-frame hysteresis detector.',
             '',
-            '# v19.0.0 - v20.0.0 (2026-11-10)',
-            '- Renamed mod to **NoTear-Problem-FPS**, added the 256x256 Cyber-Neon icon, and rewrote all documentation in English.',
-            '',
-            '# v16.0.0 - v18.0.0 (2026-11-09)',
+            '# v16.0.0 - v20.0.0 (2026-11-09)',
             '- Introduced asynchronous `GLsync` fence polling (`glClientWaitSync`) to preserve true 240+ FPS.',
             '',
             '# v8.0.0 - v15.0.0 (2026-11-08)',
@@ -239,16 +268,16 @@ jobs:
           )
           [System.IO.File]::WriteAllLines((Join-Path $PWD "changelog.md"), $changelogLines, $utf8NoBom)
 
-          # 4. Generate mod.json (100% English)
+          # 4. Generate mod.json with id "yingseo.notear.fps" and name "Bypass Screen Tear"
           $modJsonLines = @(
             '{',
             '    "geode": "5.11.2",',
             '    "gd": {',
             '        "win": "2.2081"',
             '    },',
-            '    "id": "yingseo.notear-fps-22081",',
-            '    "name": "NoTear-Problem-FPS",',
-            '    "version": "v22.0.0",',
+            '    "id": "yingseo.notear.fps",',
+            '    "name": "Bypass Screen Tear",',
+            '    "version": "v23.0.0",',
             '    "developer": "YingSeo",',
             '    "description": "Eliminates 100% of screen tearing when Unlock FPS is enabled in GD 2.2081 with zero respawn lag and stable 240+ FPS.",',
             '    "early-load": true,',
@@ -269,7 +298,7 @@ jobs:
             'set(CMAKE_CXX_EXTENSIONS OFF)',
             'set(CMAKE_CXX_VISIBILITY_PRESET hidden)',
             '',
-            'project(NoTearProblemFPS VERSION 22.0.0)',
+            'project(BypassScreenTear VERSION 23.0.0)',
             '',
             'add_library(${PROJECT_NAME} SHARED src/main.cpp)',
             '',
@@ -282,7 +311,7 @@ jobs:
           )
           [System.IO.File]::WriteAllLines((Join-Path $PWD "CMakeLists.txt"), $cmakeLines, $utf8NoBom)
 
-          # 6. Generate src/main.cpp (v22.0 Zero-Hold Pure-GL Staging + Post-Update Atomic Transfer + One-Time Loading Latch)
+          # 6. Generate src/main.cpp (Exact v22.0 Rock-Solid Engine)
           $cppLines = @(
             '#include <Geode/Geode.hpp>',
             '#include <Geode/modify/CCEGLView.hpp>',
@@ -296,7 +325,7 @@ jobs:
             '',
             'using namespace geode::prelude;',
             '',
-            'namespace NoTearProblemV22 {',
+            'namespace BypassScreenTearV23 {',
             '    #ifdef GEODE_IS_WINDOWS',
             '    // Self-contained ABI-exact DXGI & D3D11 structures',
             '    struct DxgiRational { uint32_t Numerator, Denominator; };',
@@ -748,7 +777,7 @@ jobs:
             '        if (!childClassRegistered) {',
             '            WNDCLASSEXA wc{}; wc.cbSize = sizeof(WNDCLASSEXA); wc.style = CS_OWNDC;',
             '            wc.lpfnWndProc = ChildSwapWndProc; wc.hInstance = hInst;',
-            '            wc.lpszClassName = "GeodeNoTearV22ChildSurface";',
+            '            wc.lpszClassName = "GeodeBypassTearV23Child";',
             '            RegisterClassExA(&wc);',
             '            childClassRegistered = true;',
             '        }',
@@ -759,7 +788,7 @@ jobs:
             '        if (!childSwapHwnd || !IsWindow(childSwapHwnd) || GetParent(childSwapHwnd) != hwndParent) {',
             '            if (childSwapHwnd && IsWindow(childSwapHwnd)) DestroyWindow(childSwapHwnd);',
             '            childSwapHwnd = CreateWindowExA(',
-            '                WS_EX_NOPARENTNOTIFY | WS_EX_TRANSPARENT, "GeodeNoTearV22ChildSurface", "",',
+            '                WS_EX_NOPARENTNOTIFY | WS_EX_TRANSPARENT, "GeodeBypassTearV23Child", "",',
             '                WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_DISABLED,',
             '                0, 0, static_cast<int>(w), static_cast<int>(h), hwndParent, nullptr, hInst, nullptr);',
             '        } else {',
@@ -773,7 +802,6 @@ jobs:
             '        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);',
             '',
             '        while (true) {',
-            '            // 35ms timeout (> 2 full 60Hz VBlanks) prevents premature 16.0ms timeout desync!',
             '            WaitForSingleObject(hFrameReadyEvent, 35);',
             '',
             '            if (!bridgeActive.load(std::memory_order_acquire)) {',
@@ -821,7 +849,6 @@ jobs:
             '                pDwmFlush();',
             '            }',
             '',
-            '            // Signal Main Thread that the 60Hz VBlank scanout edge has completed',
             '            vblankReadyForStage.store(true, std::memory_order_release);',
             '        }',
             '    }',
@@ -854,7 +881,7 @@ jobs:
             '        sd.SampleDesc.Count = 1;',
             '        sd.SampleDesc.Quality = 0;',
             '        sd.BufferUsage = 0x20;              // DXGI_USAGE_RENDER_TARGET_OUTPUT',
-            '        sd.BufferCount = 3;                 // 3-buffer Flip-Discard (native unthrottled queue depth)',
+            '        sd.BufferCount = 3;                 // 3-buffer Flip-Discard',
             '        sd.OutputWindow = hwnd;',
             '        sd.Windowed = 1;',
             '        sd.SwapEffect = 4;                  // DXGI_SWAP_EFFECT_FLIP_DISCARD',
@@ -1099,10 +1126,7 @@ jobs:
             '        return (lastWrittenSlot + 1) % 3;',
             '    }',
             '',
-            '    // Atomic 5-microsecond transfer from completed Pure-GL glStageFbo -> DXGI glInteropFbo -> ringTexMain:',
-            '    // Because glStageFbo is ALREADY 100% finished in VRAM (stageFence == GL_ALREADY_SIGNALED) and',
-            '    // this runs BEFORE visit() submits any new draw calls, wglDXLock/Unlock executes in 0.005ms',
-            '    // and is NEVER held across frames (100% immune to repeated death/respawn lag!)',
+            '    // Atomic 5-microsecond transfer from completed Pure-GL glStageFbo -> DXGI glInteropFbo -> ringTexMain',
             '    bool pollStageAndTransferToDxgi(int64_t nowQpc, int64_t period) {',
             '        if (!stageInFlight) return false;',
             '',
@@ -1110,7 +1134,6 @@ jobs:
             '            uint32_t res = pGlClientWaitSync(stageFence, 0, 0); // 0ns timeout = ZERO CPU STALL!',
             '            if (res != kGL_ALREADY_SIGNALED && res != kGL_CONDITION_SATISFIED) {',
             '                if (nowQpc - stageStartQpc >= period * 4) {',
-            '                    // Safety reset if window was minimized/alt-tabbed',
             '                    pGlDeleteSync(stageFence);',
             '                    stageFence = nullptr;',
             '                    stageInFlight = false;',
@@ -1156,7 +1179,6 @@ jobs:
             '    }',
             '',
             '    // Runs at the END of CCScheduler::update(dt) (after physics/respawn resetLevel, RIGHT BEFORE visit()):',
-            '    // At this exact point in the frame, the OpenGL command queue is 100% idle and empty!',
             '    void onSchedulerPostUpdate() {',
             '        if (!stageInFlight || !bridgeActive.load(std::memory_order_relaxed)) return;',
             '        if (!pGetCurrentContext || pGetCurrentContext() != trackedGlrc) return;',
@@ -1166,16 +1188,15 @@ jobs:
             '        pollStageAndTransferToDxgi(now.QuadPart, period);',
             '    }',
             '',
-            '    bool submitFrameV22() {',
+            '    bool submitFrameV23() {',
             '        if (!interopSupported) return false;',
             '',
             '        // One-Time Startup Loading Screen Latch:',
-            '        // Only checks LoadingLayer until MenuLayer is reached once; 0.000ms overhead during gameplay!',
             '        if (!startupLoadingComplete) {',
             '            auto* dir = cocos2d::CCDirector::sharedDirector();',
             '            auto* scene = dir ? dir->getRunningScene() : nullptr;',
             '            if (!scene || scene->getChildByType<LoadingLayer>(0) != nullptr) {',
-            '                return false; // Native OpenGL SwapBuffers renders startup LoadingLayer!',
+            '                return false;',
             '            }',
             '            startupLoadingComplete = true;',
             '        }',
@@ -1212,12 +1233,10 @@ jobs:
             '        lastCallQpc = now.QuadPart;',
             '        int64_t period = refreshPeriodTicks.load(std::memory_order_relaxed);',
             '',
-            '        // 1. Poll any in-flight staged frame if not already transferred by onSchedulerPostUpdate()',
             '        if (stageInFlight) {',
             '            pollStageAndTransferToDxgi(now.QuadPart, period);',
             '        }',
             '',
-            '        // 2. 6-Frame Hysteresis Detector for 60Hz Caller vs Unlocked 240+ FPS',
             '        if (callDelta >= (period * 72) / 100) {',
             '            consecutiveHighRateFrames = 0;',
             '            if (++consecutive60HzFrames >= 6) {',
@@ -1231,7 +1250,7 @@ jobs:
             '        }',
             '',
             '        if (stageInFlight) {',
-            '            return true; // Previous stage still finishing on GPU; return in 0.000ms with zero DXGI lock!',
+            '            return true;',
             '        }',
             '',
             '        int64_t sinceLastStage = now.QuadPart - lastStageQpc;',
@@ -1240,7 +1259,7 @@ jobs:
             '            (sinceLastStage >= (period * 95) / 100);',
             '',
             '        if (!shouldStage) {',
-            '            return true; // Intermediate 240Hz tick: return in 0.0000ms (zero WDDM glFlush overhead!)',
+            '            return true;',
             '        }',
             '',
             '        vblankReadyForStage.store(false, std::memory_order_relaxed);',
@@ -1253,8 +1272,6 @@ jobs:
             '        if (scissorWasOn && pGlDisable) pGlDisable(kGL_SCISSOR_TEST);',
             '',
             '        if (glStageFbo && pGlFenceSync && pGlClientWaitSync && pGlDeleteSync) {',
-            '            // Pure-OpenGL async stage (FBO 0 -> glStageFbo with Y-flip):',
-            '            // Does NOT call wglDXLockObjectsNV, so DXGI is never locked while the GPU renders!',
             '            pGlBindFramebuffer(kGL_READ_FRAMEBUFFER, 0);',
             '            if (pGlReadBuffer) pGlReadBuffer(kGL_BACK);',
             '            pGlBindFramebuffer(kGL_DRAW_FRAMEBUFFER, glStageFbo);',
@@ -1275,7 +1292,6 @@ jobs:
             '            return true;',
             '        }',
             '',
-            '        // Fallback if glStageFbo is unavailable',
             '        if (!pWglDXLockObjectsNV(hInteropDevice, 1, &hInteropObject)) {',
             '            if (scissorWasOn && pGlEnable) pGlEnable(kGL_SCISSOR_TEST);',
             '            vblankReadyForStage.store(true, std::memory_order_release);',
@@ -1311,8 +1327,7 @@ jobs:
             '    void update(float dt) {',
             '        CCScheduler::update(dt);',
             '        #ifdef GEODE_IS_WINDOWS',
-            '        // Transfer completed stage right AFTER CPU update/resetLevel and BEFORE visit() draws!',
-            '        NoTearProblemV22::onSchedulerPostUpdate();',
+            '        BypassScreenTearV23::onSchedulerPostUpdate();',
             '        #endif',
             '    }',
             '};',
@@ -1324,7 +1339,7 @@ jobs:
             '',
             '    void swapBuffers() {',
             '        #ifdef GEODE_IS_WINDOWS',
-            '        if (NoTearProblemV22::submitFrameV22()) {',
+            '        if (BypassScreenTearV23::submitFrameV23()) {',
             '            return;',
             '        }',
             '        #endif',
@@ -1334,7 +1349,7 @@ jobs:
             '',
             '$on_mod(Loaded) {',
             '    #ifdef GEODE_IS_WINDOWS',
-            '    NoTearProblemV22::cleanAllNvidiaProfiles();',
+            '    BypassScreenTearV23::cleanAllNvidiaProfiles();',
             '    #endif',
             '}'
           )
@@ -1345,7 +1360,7 @@ jobs:
         with:
           sdk: v5.11.2
 
-      - name: Verify and Package Complete .geode Archive for GD 2.2081
+      - name: Verify and Package yingseo.notear.fps.geode Archive
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
@@ -1363,25 +1378,27 @@ jobs:
             exit 1
           }
 
-          $destGeode = Join-Path $PWD "artifact\yingseo.notear-fps-22081.geode"
+          $destGeode = Join-Path $PWD "artifact\yingseo.notear.fps.geode"
           Copy-Item -Path $geodeCandidate.FullName -Destination $destGeode -Force
 
           $zip = [System.IO.Compression.ZipFile]::Open($destGeode, [System.IO.Compression.ZipArchiveMode]::Update)
           try {
             $hasDll = $false
             foreach ($entry in $zip.Entries) {
-              if ($entry.FullName -like "*.dll" -and $entry.Length -gt 4096) {
+              if ($entry.FullName -eq "yingseo.notear.fps.dll" -and $entry.Length -gt 4096) {
                 $hasDll = $true
               }
             }
 
             if (-not $hasDll) {
               $dllFile = Get-ChildItem -Path (Join-Path $PWD "build") -Filter "*.dll" -Recurse |
-                         Where-Object { $_.Name -like "*NoTear*" -or $_.Name -like "*yingseo*" } |
+                         Where-Object { $_.Name -like "*Bypass*" -or $_.Name -like "*yingseo*" } |
                          Sort-Object Length -Descending |
                          Select-Object -First 1
               if ($dllFile) {
-                [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $dllFile.FullName, "yingseo.notear-fps-22081.dll") | Out-Null
+                $oldDll = $zip.GetEntry("yingseo.notear.fps.dll")
+                if ($oldDll) { $oldDll.Delete() }
+                [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $dllFile.FullName, "yingseo.notear.fps.dll") | Out-Null
               }
             }
 
@@ -1400,5 +1417,5 @@ jobs:
       - name: Upload .geode Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NoTear-Problem-FPS-v22.0.0
-          path: artifact/*.geode
+          name: Bypass-Screen-Tear-v23.0.0
+          path: artifact/yingseo.notear.fps.geode
